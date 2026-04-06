@@ -6,7 +6,7 @@ import os
 # --- Настройка путей к твоим файлам ---
 # Укажи точные имена твоих файлов, если они отличаются
 BOT_SCRIPT = "main_v2.py"      # ← Твой файл с ботом
-ADMIN_SCRIPT = "admin-panel.py"   # ← Твой файл с админкой
+ADMIN_SCRIPT = "admin_panel.py"   # ← Твой файл с админкой
 
 def run_script(script_name):
     """Функция для запуска Python-скрипта в отдельном процессе."""
