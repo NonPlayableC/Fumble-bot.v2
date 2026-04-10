@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import random
+import aiohttp
 from datetime import datetime, date, timedelta
 from typing import Optional, Dict, Any, List, Tuple
 from supabase import create_client, Client
@@ -338,10 +340,13 @@ async def save_signal_history(user_id: int, signal_text: str, is_rare: bool = Fa
         supabase.table("signal_history").insert(data).execute()
         
         # Увеличиваем счётчик сигналов
-        supabase.table("user_stats").update({
-            "signal_clicks": supabase.rpc('increment', {'x': 1})
-        }).eq("user_id", user_id).execute()
-        
+        stats = supabase.table("user_stats").select("signal_clicks").eq("user_id", user_id).execute()
+        if stats.data:
+            current = stats.data[0].get("signal_clicks", 0)
+            supabase.table("user_stats").update({"signal_clicks": current + 1}).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_stats").insert({"user_id": user_id, "signal_clicks": 1}).execute()
+                
         if is_rare:
             supabase.table("user_stats").update({
                 "rare_phrases": supabase.rpc('increment', {'x': 1})
@@ -547,9 +552,12 @@ async def update_quest_progress(user_id: int, quest_id: int, progress: int) -> b
         if completed:
             # Начисляем награду
             reward = quest.data["reward_points"]
-            supabase.table("user_stats").update({
-                "total_score": supabase.rpc('increment', {'x': reward})
-            }).eq("user_id", user_id).execute()
+            stats = supabase.table("user_stats").select("total_score").eq("user_id", user_id).execute()
+            if stats.data:
+                current = stats.data[0].get("total_score", 0)
+                supabase.table("user_stats").update({"total_score": current + reward}).eq("user_id", user_id).execute()
+            else:
+                supabase.table("user_stats").insert({"user_id": user_id, "total_score": reward}).execute()
         
         return True
     except Exception as e:
@@ -785,36 +793,6 @@ async def notify_quest_completed(user_id: int, quest: Dict):
         logging.error(f"Error notifying quest completion: {e}")
         
 
-async def give_referral_bonus(referrer_id: int, referred_id: int):
-    """Начисляет бонус $BINTY рефереру и приглашённому при первом фамбле"""
-    try:
-        ref = supabase.table("referrals").select("reward_given").eq("referrer_id", referrer_id).eq("referred_id", referred_id).execute()
-        if ref.data and ref.data[0].get("reward_given"):
-            return
-        
-        supabase.table("user_balances").upsert({
-            "user_id": referrer_id,
-            "amount": supabase.rpc('increment_balance', {'p_user_id': referrer_id, 'p_amount': 100})
-        }).execute()
-        
-        supabase.table("user_balances").upsert({
-            "user_id": referred_id,
-            "amount": supabase.rpc('increment_balance', {'p_user_id': referred_id, 'p_amount': 50})
-        }).execute()
-        
-        supabase.table("referrals").update({"reward_given": True}).eq("referrer_id", referrer_id).eq("referred_id", referred_id).execute()
-        
-    except Exception as e:
-        logging.error(f"Error giving referral bonus: {e}")
-        
-async def get_all_achievements(lang: str = "en") -> List[Dict]:
-    try:
-        res = supabase.table("achievements_list").select("*").execute()
-        return res.data if res.data else []
-    except Exception as e:
-        logging.error(f"Error getting all achievements: {e}")
-        return []
-
 async def check_and_award_achievements(user_id: int, action: str, value: Any = None):
     """
     Проверяет и выдаёт ачивки пользователю.
@@ -877,6 +855,31 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
             "reward": 3,
             "condition": lambda stats, user: user.get("rare_phrases", 0) >= 5
         },
+        "king_of_bottom": {
+            "name": {"en": "King of the Bottom", "ru": "Король дна", "es": "Rey del Fondo", "zh": "底部之王"},
+            "reward": 5,
+            "condition": lambda stats, user: False  # проверяется отдельно в leaderboard
+        },
+        "signal_legend": {
+            "name": {"en": "Signal Legend", "ru": "Легенда сигналов", "es": "Leyenda de Señales", "zh": "信号传奇"},
+            "reward": 5,
+            "condition": lambda stats, user: user.get("signal_clicks", 0) >= 100
+        },
+        "godless": {
+            "name": {"en": "Godless", "ru": "Безбожник", "es": "Impío", "zh": "无神论者"},
+            "reward": 10,
+            "condition": lambda stats, user: user.get("streak_days", 0) >= 30 or user.get("max_streak", 0) >= 30
+        },
+        "liquidity_sponsor": {
+            "name": {"en": "Liquidity Sponsor", "ru": "Спонсор ликвидности", "es": "Patrocinador de Liquidez", "zh": "流动性赞助商"},
+            "reward": 10,
+            "condition": lambda stats, user: user.get("total_loss_usd", 0) >= 100
+        },
+        "legend_of_shame": {
+            "name": {"en": "Legend of Shame", "ru": "Легенда позора", "es": "Leyenda de la Vergüenza", "zh": "耻辱传奇"},
+            "reward": 20,
+            "condition": lambda stats, user: False  # проверяется отдельно
+        },
     }
     
     try:
@@ -915,9 +918,12 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                 await save_achievement(user_id, key)
                 
                 # Начисляем баллы
-                supabase.table("user_stats").update({
-                    "total_score": supabase.rpc('increment', {'x': ach["reward"]})
-                }).eq("user_id", user_id).execute()
+                stats = supabase.table("user_stats").select("total_score").eq("user_id", user_id).execute()
+                if stats.data:
+                    current = stats.data[0].get("total_score", 0)
+                    supabase.table("user_stats").update({"total_score": current + ach["reward"]}).eq("user_id", user_id).execute()
+                else:
+                    supabase.table("user_stats").insert({"user_id": user_id, "total_score": ach["reward"]}).execute()
                 
                 # Отправляем уведомление
                 lang = await get_language(user_id)
