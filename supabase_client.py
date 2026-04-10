@@ -348,12 +348,12 @@ async def save_signal_history(user_id: int, signal_text: str, is_rare: bool = Fa
             supabase.table("user_stats").insert({"user_id": user_id, "signal_clicks": 1}).execute()
                 
         if is_rare:
-        stats = supabase.table("user_stats").select("rare_phrases").eq("user_id", user_id).execute()
-        if stats.data:
-            current = stats.data[0].get("rare_phrases", 0)
-            supabase.table("user_stats").update({"rare_phrases": current + 1}).eq("user_id", user_id).execute()
-        else:
-            supabase.table("user_stats").insert({"user_id": user_id, "rare_phrases": 1}).execute()
+            stats = supabase.table("user_stats").select("rare_phrases").eq("user_id", user_id).execute()
+            if stats.data:
+                current = stats.data[0].get("rare_phrases", 0)
+                supabase.table("user_stats").update({"rare_phrases": current + 1}).eq("user_id", user_id).execute()
+            else:
+                supabase.table("user_stats").insert({"user_id": user_id, "rare_phrases": 1}).execute()
         
         return True
     except Exception as e:
