@@ -100,15 +100,15 @@ async def get_main_menu(user_id: int, lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["holders"], callback_data="holders"),
          InlineKeyboardButton(t["balance"], callback_data="balance")],
         [InlineKeyboardButton(t["leaderboard"], callback_data="leaderboard"),
-         InlineKeyboardButton(t["language"], callback_data="language")],
-        [InlineKeyboardButton(subscribe_text, callback_data=subscribe_callback),
-         InlineKeyboardButton(t["game_center"], callback_data="game_center")],
-        [InlineKeyboardButton(t["my_stats"], callback_data="my_stats"),
          InlineKeyboardButton(t["meme"], callback_data="meme")],
+        [InlineKeyboardButton(subscribe_text, callback_data=subscribe_callback)],
+        [InlineKeyboardButton(t["my_stats"], callback_data="my_stats"),
+         InlineKeyboardButton(t["game_center"], callback_data="game_center")],
+        [InlineKeyboardButton(t["language"], callback_data="language"),
+         InlineKeyboardButton(t["help"], callback_data="help")],
         [InlineKeyboardButton(t["buy"], url=f"https://pump.fun/coin/{TOKEN_ADDRESS}"),
          InlineKeyboardButton(t["site"], url=SITE_URL),
-         InlineKeyboardButton(t["chat"], url=CHAT_URL),
-         InlineKeyboardButton(t["help"], callback_data="help")]
+         InlineKeyboardButton(t["chat"], url=CHAT_URL),]
     ])
 
 def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
@@ -119,7 +119,7 @@ def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar"),
          InlineKeyboardButton(t["quests"], callback_data="quests")],
         [InlineKeyboardButton(t["referrals"], callback_data="referrals")],
-        [InlineKeyboardButton("◀️ " + t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
@@ -127,7 +127,7 @@ def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
          InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
-        [InlineKeyboardButton("◀️ " + t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 # ==================== ПРИВЕТСТВИЯ ====================
@@ -1229,7 +1229,7 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
         [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
         [InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh")],
-        [InlineKeyboardButton("◀️ Back", callback_data="back_to_menu")]
+        [InlineKeyboardButton("↩️ Back", callback_data="back_to_menu")]
     ])
     await query.message.reply_text("🌐 Select language / Выбери язык / Selecciona idioma / 选择语言:", reply_markup=kb)
 
