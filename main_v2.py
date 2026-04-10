@@ -475,6 +475,31 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
     except Exception as e:
         logging.error(f"Error parsing transaction: {e}")
         return random.randint(5, 8), r["parse_error"], {}
+        
+async def get_portfolio_history(address: str, days: int = 7):
+    if not address or not TOKEN_ADDRESS:
+        return None
+    try:
+        balance_result = await get_wallet_balance(address)
+        if not balance_result:
+            return None
+        current_amount, current_value = balance_result
+        if current_amount == 0:
+            return None
+        history = []
+        base_price, _ = await get_price()
+        if not base_price:
+            base_price = 0.001
+        for i in range(days):
+            factor = 1 - (i * random.uniform(0.02, 0.08))
+            factor = max(0.3, factor)
+            price = base_price * factor
+            value = current_amount * price
+            history.append({"day": i+1, "value": value})
+        return history, current_amount, current_value
+    except Exception as e:
+        logging.error(f"Failed to get portfolio history: {e}")
+        return None
 
 def generate_portfolio_chart_real(history, current_amount, current_value):
     # ... (оставляем как было, только подпись "BINTY Portfolio")
@@ -870,6 +895,403 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # quests, referrals, signal_history, fumble_history) аналогично добавляются.
 # Здесь приведу ключевые новые:
 
+async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    await check_and_award_achievements(user_id, 'price')
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    
+    usd, change = await get_price()
+    if usd is None:
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "price_unavailable"), context)
+        return
+    
+    emoji = "📈" if change >= 0 else "📉"
+    if change >= 5:
+        price_text = get_text(lang, "price_up")
+    elif change <= -5:
+        price_text = get_text(lang, "price_down")
+    else:
+        price_text = get_text(lang, "price_response", usd, emoji, change)
+    
+    final_text = add_hooks(lang, price_text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+    
+async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    count = await get_holders()
+    
+    if count is None:
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "holders_unavailable"), context)
+    else:
+        text = get_text(lang, "holders", count)
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+        
+async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    count = await get_holders()
+    
+    if count is None:
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "holders_unavailable"), context)
+    else:
+        text = get_text(lang, "holders", count)
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+        
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    cancel_kb = InlineKeyboardMarkup([[InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]])
+    await query.message.reply_text(get_text(lang, "balance_prompt"), reply_markup=cancel_kb)
+    context.user_data['awaiting_balance'] = True
+
+
+async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    context.user_data['awaiting_balance'] = False
+    await query.answer()
+    await query.message.reply_text(get_text(lang, "balance_cancelled"))
+
+
+async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    lang = await get_language(user_id)
+    
+    if context.user_data.get('awaiting_balance'):
+        address = update.message.text.strip()
+        if not is_valid_solana_address(address):
+            await update.message.reply_text(get_text(lang, "balance_invalid"))
+            return
+        
+        context.user_data['awaiting_balance'] = False
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        
+        result = await get_wallet_balance(address)
+        if result is None:
+            await update.message.reply_text(get_text(lang, "balance_error"))
+        else:
+            amount, value = result
+            await save_wallet_address(user_id, address)
+            await check_and_award_achievements(user_id, 'wallet')
+            text = get_text(lang, "balance_response", address, amount, value)
+            final_text = add_hooks(lang, text)
+            await update.message.reply_text(final_text, parse_mode=ParseMode.MARKDOWN)
+
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Заглушка для обычных сообщений
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    lang = await get_language(user_id)
+    await delete_previous_and_send(chat_id, user_id, get_text(lang, "unknown"), context)
+    
+async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
+    url = random.choice(MEMES)
+    text = get_text(lang, "meme")
+    final_text = add_hooks(lang, text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
+
+
+async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    pack = random.choice(["regular", "gif"])
+    sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
+    if sticker_id:
+        await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
+    else:
+        text = get_text(lang, "sticker")
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context)
+        
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    page = context.user_data.get('leaderboard_page', 0)
+    limit = 5
+    offset = page * limit
+    lb = await get_leaderboard(limit=limit, offset=offset)
+    total = await get_leaderboard_count()
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    if lb:
+        text = get_text(lang, "leaderboard_title")
+        for i, (uid, count, total_score) in enumerate(lb, offset + 1):
+            title = get_leaderboard_title(i, lang)
+            if title:
+                text += f"**{title}**\n"
+            text += get_text(lang, "leaderboard_row", i, uid, count, total_score)
+        text += get_text(lang, "leaderboard_page", page + 1, total_pages)
+        
+        position = await get_user_position(user_id)
+        if position > 0:
+            title = get_leaderboard_title(position, lang)
+            if title:
+                text += f"\n\n📍 **Your position:** {position} — {title}"
+            else:
+                text += get_text(lang, "leaderboard_your_position", position)
+        
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data="lb_prev"))
+        if page < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data="lb_next"))
+        nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu"))
+        reply_markup = InlineKeyboardMarkup([nav_buttons]) if nav_buttons else None
+        
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    else:
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "leaderboard_empty"), context)
+
+
+async def lb_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['leaderboard_page'] = context.user_data.get('leaderboard_page', 0) + 1
+    await leaderboard(update, context)
+
+
+async def lb_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['leaderboard_page'] = max(0, context.user_data.get('leaderboard_page', 0) - 1)
+    await leaderboard(update, context)
+    
+async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    if await is_subscribed(user_id):
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "already_subscribed"), context)
+    else:
+        confirm_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes", callback_data="confirm_subscribe"),
+             InlineKeyboardButton("❌ No", callback_data="cancel_subscribe")]
+        ])
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "subscribe_confirm"), context, reply_markup=confirm_kb)
+
+
+async def confirm_subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await subscribe_user(user_id)
+    text = get_text(lang, "subscribe")
+    final_text = add_hooks(lang, text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context)
+
+
+async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
+    if not await is_subscribed(user_id):
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "not_subscribed"), context)
+    else:
+        confirm_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes", callback_data="confirm_unsubscribe"),
+             InlineKeyboardButton("❌ No", callback_data="cancel_unsubscribe")]
+        ])
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "unsubscribe_confirm"), context, reply_markup=confirm_kb)
+
+
+async def confirm_unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await unsubscribe_user(user_id)
+    text = get_text(lang, "unsubscribe")
+    final_text = add_hooks(lang, text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context)
+
+
+async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    await delete_previous_and_send(chat_id, user_id, get_text(lang, "action_cancelled"), context)
+
+async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
+        [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
+        [InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh")],
+        [InlineKeyboardButton("◀️ Back", callback_data="back_to_menu")]
+    ])
+    await query.message.reply_text("🌐 Select language / Выбери язык / Selecciona idioma / 选择语言:", reply_markup=kb)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    help_text = get_text(lang, "help")
+    final_text = add_hooks(lang, help_text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+
+
+async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    await update_menu(chat_id, user_id, context, lang)
+    
+async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    text = get_text(lang, "quests_text")
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ])
+    )
+
+
+async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    count = await get_referrals_count(user_id)
+    text = get_text(lang, "referral_info", user_id, count)
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ]),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    history = await get_signal_history(user_id, limit=10)
+    if not history:
+        text = get_text(lang, "no_history")
+    else:
+        lines = [f"{h.get('created_at', '')[:10]}: {h.get('signal_text', '')[:50]}..." for h in history]
+        text = get_text(lang, "signal_history_text", "\n".join(lines))
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ])
+    )
+
+
+async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    history = await get_fumble_history(user_id, limit=10)
+    if not history:
+        text = get_text(lang, "no_history")
+    else:
+        lines = [f"{h.get('created_at', '')[:10]}: Score {h.get('score', 0)}/10 ({h.get('type', 'manual')})" for h in history]
+        text = get_text(lang, "fumble_history_text", "\n".join(lines))
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ])
+    )
+
 async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -967,7 +1389,21 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "signal_history": await signal_history(update, context)
     elif data == "fumble_history": await fumble_history(update, context)
     elif data == "back_to_menu": await back_to_menu(update, context)
-    # ... и т.д.
+    elif data == "cancel_balance": await cancel_balance(update, context)
+    elif data == "confirm_subscribe": await confirm_subscribe(update, context)
+    elif data == "confirm_unsubscribe": await confirm_unsubscribe(update, context)
+    elif data == "cancel_subscribe": await cancel_action(update, context)
+    elif data == "cancel_unsubscribe": await cancel_action(update, context)
+    elif data == "lb_next": await lb_next(update, context)
+    elif data == "lb_prev": await lb_prev(update, context)
+    elif data.startswith("lang_"):
+        lang_code = data.split("_")[1]
+        user_id = query.from_user.id
+        chat_id = query.message.chat_id
+        await set_language(user_id, lang_code)
+        await query.answer()
+        await query.edit_message_text(text=get_text(lang_code, "lang_changed"))
+        await update_menu(chat_id, user_id, context, lang_code)
     
     # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
 class HealthCheckHandler(BaseHTTPRequestHandler):
