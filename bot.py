@@ -33,7 +33,7 @@ from supabase_client import (
     save_achievement, get_user_achievements,
     create_referral, get_referrals_count,
     save_signal_history, get_signal_history,
-    save_fumble_history, get_fumble_history,
+    get_fumble_history, # <-- Убрали save_fumble_history
     log_certificate_request,
     check_and_award_achievements,
     generate_daily_quests_for_user,
