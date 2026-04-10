@@ -510,6 +510,15 @@ async def get_user_achievements(user_id: int) -> List[Dict]:
     except Exception as e:
         logging.error(f"Error getting achievements for {user_id}: {e}")
         return []
+        
+async def get_all_achievements(lang: str = "en") -> List[Dict]:
+    """Возвращает список всех ачивок"""
+    try:
+        res = supabase.table("achievements_list").select("*").execute()
+        return res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Error getting all achievements: {e}")
+        return []
 
 # ==================== КВЕСТЫ ====================
 
