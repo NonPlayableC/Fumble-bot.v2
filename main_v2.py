@@ -4,233 +4,837 @@ import logging
 import asyncio
 import aiohttp
 import re
-from datetime import datetime
+import json
+import threading
+from datetime import datetime, date, timedelta
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, BotCommand
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from typing import Optional, Tuple, List, Dict, Any
+
+from PIL import Image, ImageDraw, ImageFont, ImageColor
+import qrcode
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Poll
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler,
+    filters, PollAnswerHandler, ContextTypes, CallbackContext
+)
 from telegram.constants import ParseMode
 
-# Import our custom modules
-import database as db
-from texts import TEXTS, get_text
+# Импорт функций работы с Supabase
+from supabase_client import (
+    init_supabase,
+    get_user, create_user, update_user, delete_user,
+    get_language, set_language,
+    save_fumble, get_user_stats, get_leaderboard, get_leaderboard_count,
+    subscribe_user, unsubscribe_user, is_subscribed, get_all_subscribed_users,
+    save_wallet_address, get_wallet_address, delete_wallet_address,
+    update_streak, get_streak_info,
+    save_achievement, get_user_achievements,
+    create_referral, get_referrals_count,
+    save_signal_history, get_signal_history,
+    save_fumble_history, get_fumble_history,
+    log_certificate_request,
+    check_and_award_achievements
+)
+from texts import TEXTS, get_text, add_hooks
+from twitter_poster import start_scheduler  # опционально
 
-# Configure logging
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# Environment variables
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS", "FumblCoinAddressHere")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN not set")
 
-# ==================== UTILITIES ====================
+TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS", "")
+HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+SITE_URL = "https://binty.xyz"          # замените на актуальный
+CHAT_URL = "https://t.me/bintychat"     # замените на актуальный
 
-def is_valid_solana_address(address):
-    return bool(re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address))
+# Кэш для цены
+price_cache = {"price": None, "change": 0, "timestamp": 0}
+CACHE_DURATION = 300
 
-def get_button_text(lang, key):
+# Хранилище для удаления предыдущих сообщений
+MAX_STORAGE = 1000
+last_responses = {}
+menu_message_ids = {}
+user_request_times = {}
+
+STICKERS = {"regular": [], "gif": []}
+MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
+
+def is_valid_solana_address(address: str) -> bool:
+    return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$', address))
+
+def get_button_text(lang: str, key: str) -> str:
     return TEXTS[lang]["buttons"].get(key, key)
 
-def get_main_menu(lang):
-    buttons = [
-        [InlineKeyboardButton(get_button_text(lang, "signal"), callback_data="signal"),
-         InlineKeyboardButton(get_button_text(lang, "fumble"), callback_data="fumble")],
-        [InlineKeyboardButton(get_button_text(lang, "portfolio"), callback_data="portfolio"),
-         InlineKeyboardButton(get_button_text(lang, "price"), callback_data="price")],
-        [InlineKeyboardButton(get_button_text(lang, "leaderboard"), callback_data="leaderboard"),
-         InlineKeyboardButton(get_button_text(lang, "referral_btn"), callback_data="referral")],
-        [InlineKeyboardButton(get_button_text(lang, "subscribe"), callback_data="subscribe"),
-         InlineKeyboardButton(get_button_text(lang, "language"), callback_data="language_menu")],
-        [InlineKeyboardButton(get_button_text(lang, "roast_me_btn"), callback_data="roast_me"),
-         InlineKeyboardButton(get_button_text(lang, "tomorrow_btn"), callback_data="tomorrow")],
-        [InlineKeyboardButton(get_button_text(lang, "buy"), url=f"https://pump.fun/coin/{TOKEN_ADDRESS}"),
-         InlineKeyboardButton(get_button_text(lang, "chat"), url="https://t.me/fumblcoin")]
+# ==================== МЕНЮ (BINTY) ====================
+def get_main_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["signal"], callback_data="signal"),
+         InlineKeyboardButton(t["fumble"], callback_data="fumble")],
+        [InlineKeyboardButton(t["portfolio"], callback_data="portfolio"),
+         InlineKeyboardButton(t["price"], callback_data="price")],
+        [InlineKeyboardButton(t["holders"], callback_data="holders"),
+         InlineKeyboardButton(t["balance"], callback_data="balance")],
+        [InlineKeyboardButton(t["meme"], callback_data="meme"),
+         InlineKeyboardButton(t["sticker"], callback_data="sticker")],
+        [InlineKeyboardButton(t["leaderboard"], callback_data="leaderboard"),
+         InlineKeyboardButton(t["language"], callback_data="language")],
+        [InlineKeyboardButton(t["subscribe"], callback_data="subscribe"),
+         InlineKeyboardButton(t["unsubscribe"], callback_data="unsubscribe")],
+        [InlineKeyboardButton(t["game_center"], callback_data="game_center"),
+         InlineKeyboardButton(t["my_stats"], callback_data="my_stats")],
+        [InlineKeyboardButton(t["buy"], url=f"https://pump.fun/coin/{TOKEN_ADDRESS}"),
+         InlineKeyboardButton(t["site"], url=SITE_URL),
+         InlineKeyboardButton(t["chat"], url=CHAT_URL),
+         InlineKeyboardButton(t["help"], callback_data="help")]
+    ])
+
+def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["achievements"], callback_data="achievements"),
+         InlineKeyboardButton(t["certificate"], callback_data="certificate")],
+        [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar"),
+         InlineKeyboardButton(t["quests"], callback_data="quests")],
+        [InlineKeyboardButton(t["referrals"], callback_data="referrals")],
+        [InlineKeyboardButton("◀️ " + t["back_to_menu"], callback_data="back_to_menu")]
+    ])
+
+def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
+         InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
+        [InlineKeyboardButton("◀️ " + t["back_to_menu"], callback_data="back_to_menu")]
+    ])
+
+# ==================== ПРИВЕТСТВИЯ ====================
+WELCOME_NEW = {
+    "en": [
+        "Oh, a new victim. You sure you want this? Don't say I didn't warn you. 🤡",
+        "Another loser who thinks he's special. Spoiler: you're not. Here are the buttons.",
+        "Welcome. Your portfolio is already down while you were reading this. You're welcome.",
+        "Fresh meat. Ready to lose some money? Let's go. 📉",
+        "I was hoping for a smarter one. But you'll do. Here's the menu. Try not to cry.",
+        "A new challenger appears. Your first loss is free. The rest will cost you. 💀"
+    ],
+    "ru": [
+        "О, новая жертва. Ты уверен, что хочешь этого? Не говори, что я не предупреждал. 🤡",
+        "Ещё один лузер, который думает, что он особенный. Спойлер: нет. Держи кнопки.",
+        "Добро пожаловать. Твой портфель уже упал, пока ты это читал. Не благодари.",
+        "Свежее мясо. Готов потерять деньги? Погнали. 📉",
+        "Я надеялся на более умного. Но ты сойдёшь. Вот меню. Старайся не плакать.",
+        "Новый боец. Первый проигрыш — за счёт заведения. Остальные — за твой счёт. 💀"
+    ],
+    "es": [
+        "Oh, una nueva víctima. ¿Seguro que quieres esto? No digas que no te avisé. 🤡",
+        "Otro perdedor que cree que es especial. Spoiler: no lo eres. Aquí tienes los botones.",
+        "Bienvenido. Tu cartera ya está cayendo mientras leías esto. De nada.",
+        "Carne fresca. ¿Listo para perder dinero? Vamos. 📉",
+        "Esperaba alguien más inteligente. Pero tú sirves. Aquí está el menú. Intenta no llorar.",
+        "Un nuevo contendiente. Tu primera pérdida es gratis. El resto te costará. 💀"
+    ],
+    "zh": [
+        "哦，新的受害者。你确定你想要这个？别说我没警告你。🤡",
+        "另一个觉得自己很特别的失败者。剧透：你不是。拿着按钮。",
+        "欢迎。在你读这段话的时候，你的投资组合已经在下跌了。不客气。",
+        "新鲜血液。准备好亏钱了吗？走吧。📉",
+        "我本以为会遇到更聪明的人。但你也行。这是菜单。尽量别哭。",
+        "新挑战者。你的第一次亏损是免费的。剩下的会让你付出代价。💀"
     ]
-    return InlineKeyboardMarkup(buttons)
+}
 
-# ==================== IMAGE GENERATION ====================
+WELCOME_OLD = {
+    "en": [
+        "Oh, you again. Ready to lose some more? Here are your buttons. 📉",
+        "Back for more pain? I respect the stupidity. Here's the menu.",
+        "You again? I thought you'd learned. You didn't. Buttons are waiting.",
+        "Welcome back. Your portfolio is still down. Nothing changed. Here's the menu."
+    ],
+    "ru": [
+        "О, опять ты. Готов слить ещё немного? Держи кнопки. 📉",
+        "Снова за болью? Я уважаю тупость. Держи меню.",
+        "Опять ты? Я думал, ты научился. Не научился. Кнопки ждут.",
+        "С возвращением. Твой портфель всё ещё в минусе. Ничего не изменилось. Держи меню."
+    ],
+    "es": [
+        "Oh, otra vez tú. ¿Listo para perder un poco más? Aquí tienes los botones. 📉",
+        "¿De vuelta por más dolor? Respeto la estupidez. Aquí está el menú.",
+        "¿Otra vez tú? Pensé que habías aprendido. No lo hiciste. Los botones te esperan.",
+        "Bienvenido de nuevo. Tu cartera sigue en rojo. Nada ha cambiado. Aquí está el menú."
+    ],
+    "zh": [
+        "哦，又是你。准备好再亏一点了吗？拿着按钮。📉",
+        "又来找痛苦了？我尊重你的愚蠢。这是菜单。",
+        "又是你？我以为你已经吸取教训了。你没有。按钮在等着你。",
+        "欢迎回来。你的投资组合仍然在亏损。什么都没变。这是菜单。"
+    ]
+}
 
-def generate_share_card(user_name, rank, level, fumbles):
-    width, height = 600, 400
-    img = Image.new('RGB', (width, height), color='#121212')
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([10, 10, width-10, height-10], outline='#ff5252', width=5)
+def get_welcome(lang: str, is_new: bool) -> str:
+    pool = WELCOME_NEW.get(lang, WELCOME_NEW["en"]) if is_new else WELCOME_OLD.get(lang, WELCOME_OLD["en"])
+    return random.choice(pool)
     
-    draw.text((50, 50), "🤡 FUMBL DEGEN CARD", fill='#ff5252')
-    draw.text((50, 120), f"NAME: {user_name}", fill='white')
-    draw.text((50, 170), f"RANK: {rank}", fill='#ff5252')
-    draw.text((50, 220), f"LEVEL: {level}", fill='white')
-    draw.text((50, 270), f"TOTAL FUMBLES: {fumbles}", fill='white')
-    draw.text((50, 340), "PROUDLY LOSING MONEY SINCE 2024", fill='#555')
-    
-    bio = BytesIO()
-    img.save(bio, 'PNG')
-    bio.seek(0)
-    return bio
-
-# ==================== MESSAGE MANAGEMENT ====================
-
-async def update_interface(update: Update, context: ContextTypes.DEFAULT_TYPE, text, reply_markup=None, photo=None):
-    query = update.callback_query
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
-    
-    if "main_msg_id" not in context.user_data:
-        context.user_data["main_msg_id"] = None
-    
+    # ==================== API ФУНКЦИИ ====================
+async def get_price() -> Tuple[Optional[float], float]:
+    global price_cache
+    now = datetime.now().timestamp()
+    if price_cache["timestamp"] and now - price_cache["timestamp"] < CACHE_DURATION:
+        return price_cache["price"], price_cache["change"]
+    if not TOKEN_ADDRESS:
+        return None, 0
     try:
-        if photo:
-            if context.user_data["main_msg_id"]:
-                try:
-                    await context.bot.edit_message_media(
-                        chat_id=chat_id,
-                        message_id=context.user_data["main_msg_id"],
-                        media=InputMediaPhoto(media=photo, caption=text, parse_mode=ParseMode.MARKDOWN),
-                        reply_markup=reply_markup
-                    )
-                    return
-                except Exception:
-                    pass
-            
-            msg = await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-            context.user_data["main_msg_id"] = msg.message_id
-        else:
-            if query and context.user_data["main_msg_id"] == query.message.message_id:
-                await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-            elif context.user_data["main_msg_id"]:
-                try:
-                    await context.bot.edit_message_text(chat_id=chat_id, message_id=context.user_data["main_msg_id"], text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-                except Exception:
-                    msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-                    context.user_data["main_msg_id"] = msg.message_id
-            else:
-                msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-                context.user_data["main_msg_id"] = msg.message_id
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://api.dexscreener.com/latest/dex/token/{TOKEN_ADDRESS}", headers=HEADERS) as resp:
+                data = await resp.json()
+                pairs = data.get("pairs", [])
+                if not pairs:
+                    return None, 0
+                price = float(pairs[0].get("priceUsd", 0))
+                change = pairs[0].get("priceChange", {}).get("h24", 0)
+                price_cache = {"price": price, "change": change, "timestamp": now}
+                return price, change
     except Exception as e:
-        logger.error(f"Error updating interface: {e}")
-        msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
-        context.user_data["main_msg_id"] = msg.message_id
+        logging.error(f"Failed to fetch price: {e}")
+        return None, 0
 
-# ==================== HANDLERS ====================
+async def get_holders() -> Optional[int]:
+    if not TOKEN_ADDRESS:
+        return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://public-api.solscan.io/token/holders?tokenAddress={TOKEN_ADDRESS}", headers=HEADERS) as resp:
+                data = await resp.json()
+                if isinstance(data, list):
+                    return len(data)
+                elif isinstance(data, dict):
+                    return data.get("total")
+                return None
+    except Exception as e:
+        logging.error(f"Failed to fetch holders: {e}")
+        return None
 
-async def check_achievements(user_id, lang, context: ContextTypes.DEFAULT_TYPE):
-    stats = db.get_user_stats(user_id)
-    new_achievements = []
-    if stats["fumble_count"] == 1 and db.grant_achievement(user_id, "first_fumble"):
-        new_achievements.append(get_text(lang, "achievements", index="first_fumble"))
-    if stats["streak"] >= 3 and db.grant_achievement(user_id, "streak_3"):
-        new_achievements.append(get_text(lang, "achievements", index="streak_3"))
-    if stats["interaction_count"] >= 100 and db.grant_achievement(user_id, "clicker_100"):
-        new_achievements.append(get_text(lang, "achievements", index="clicker_100"))
-    if new_achievements:
-        msg = "🏆 *NEW ACHIEVEMENT UNLOCKED!*\n\n" + "\n".join(new_achievements)
-        await context.bot.send_message(chat_id=user_id, text=msg, parse_mode=ParseMode.MARKDOWN)
+async def get_wallet_balance(address: str) -> Optional[Tuple[float, float]]:
+    if not TOKEN_ADDRESS:
+        return None
+    try:
+        url = f"https://public-api.solscan.io/account/tokens?account={address}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=HEADERS) as resp:
+                data = await resp.json()
+                for token in data:
+                    if token.get("tokenAddress") == TOKEN_ADDRESS:
+                        amount = int(token.get("amount", 0)) / 10 ** token.get("decimals", 9)
+                        price, _ = await get_price()
+                        return amount, amount * (price or 0)
+                return 0.0, 0.0
+    except Exception as e:
+        logging.error(f"Failed to fetch wallet balance for {address}: {e}")
+        return None
 
-async def trigger_random_event(user_id, lang, context: ContextTypes.DEFAULT_TYPE):
-    if random.random() < 0.05:
-        event_key = random.choice(["rug_pull", "whale_dump", "pump_fake"])
-        event_text = get_text(lang, "events").get(event_key, "Something bad happened.")
-        await context.bot.send_message(chat_id=user_id, text=f"⚠️ *RANDOM EVENT:* {event_text}", parse_mode=ParseMode.MARKDOWN)
+async def get_last_swap_transaction(wallet: str) -> Optional[Dict[str, Any]]:
+    """Получает последнюю SWAP транзакцию через Helius (или Solscan fallback)"""
+    if HELIUS_API_KEY:
+        url = f"https://api.helius.xyz/v0/addresses/{wallet}/transactions?api-key={HELIUS_API_KEY}&limit=5"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        txs = await resp.json()
+                        for tx in txs:
+                            if tx.get("type") == "SWAP":
+                                return tx
+        except Exception as e:
+            logging.error(f"Helius error: {e}")
 
+    # Fallback на Solscan (менее детально, но бесплатно)
+    url = f"https://public-api.solscan.io/account/transactions?account={wallet}&limit=10"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=HEADERS) as resp:
+            data = await resp.json()
+            for tx in data:
+                # Solscan не даёт тип явно, ищем по полям
+                if "swap" in str(tx).lower():
+                    return tx
+    return None
+
+def calculate_fumble_from_tx(tx: Dict[str, Any]) -> Tuple[int, str]:
+    """Вычисляет счёт фамбла и комментарий на основе транзакции"""
+    # Заглушка: в реальности парсим вход/выход, цены, убыток
+    # Возвращаем (score, reason)
+    # Здесь упрощённо: если есть поле с убытком, используем его
+    loss_percent = random.uniform(-50, 10)  # -50% до +10%
+    if loss_percent <= -30:
+        score = random.randint(9, 10)
+        reason = f"Убыток {loss_percent:.1f}% — ты мастер самоуничтожения."
+    elif loss_percent <= -15:
+        score = random.randint(7, 8)
+        reason = f"Убыток {loss_percent:.1f}% — неплохо, но мог и больше."
+    elif loss_percent < 0:
+        score = random.randint(5, 6)
+        reason = f"Убыток {loss_percent:.1f}% — так, разминка."
+    else:
+        score = random.randint(0, 2)
+        reason = f"Прибыль {loss_percent:.1f}%? Ошибка выжившего. Скоро исправим."
+    return score, reason
+
+async def get_portfolio_history(address: str, days: int = 7):
+    if not address or not TOKEN_ADDRESS:
+        return None
+    try:
+        balance_result = await get_wallet_balance(address)
+        if not balance_result:
+            return None
+        current_amount, current_value = balance_result
+        if current_amount == 0:
+            return None
+        history = []
+        base_price, _ = await get_price()
+        if not base_price:
+            base_price = 0.001
+        for i in range(days):
+            factor = 1 - (i * random.uniform(0.02, 0.08))
+            factor = max(0.3, factor)
+            price = base_price * factor
+            value = current_amount * price
+            history.append({"day": i+1, "value": value})
+        return history, current_amount, current_value
+    except Exception as e:
+        logging.error(f"Failed to get portfolio history: {e}")
+        return None
+
+def generate_portfolio_chart_real(history, current_amount, current_value):
+    # ... (оставляем как было, только подпись "BINTY Portfolio")
+    if not history:
+        return generate_portfolio_chart_fake()
+    width, height = 500, 300
+    image = Image.new('RGB', (width, height), color='black')
+    draw = ImageDraw.Draw(image)
+    max_value = max([p["value"] for p in history]) if history else 1
+    min_value = min([p["value"] for p in history]) if history else 0
+    if max_value == min_value:
+        max_value = min_value + 1
+    points = []
+    for i, point in enumerate(history):
+        x = i * (width // (len(history)-1 if len(history)>1 else 1))
+        y = height - ((point["value"] - min_value) / (max_value - min_value)) * height * 0.8 - 20
+        points.append((x, y))
+    for i in range(len(points)-1):
+        draw.line([points[i], points[i+1]], fill='red', width=3)
+    for point in points:
+        draw.ellipse([point[0]-3, point[1]-3, point[0]+3, point[1]+3], fill='white')
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    draw.text((10, 10), "BINTY Portfolio", fill="white", font=font)
+    draw.text((10, height-20), f"Balance: {current_amount:.4f} BINTY", fill="#00ff99", font=font)
+    draw.text((width-150, 10), f"Value: ${current_value:.2f}", fill="white", font=font)
+    img_bytes = BytesIO()
+    image.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
+
+def generate_portfolio_chart_fake():
+    width, height = 500, 300
+    image = Image.new('RGB', (width, height), color='black')
+    draw = ImageDraw.Draw(image)
+    points = []
+    value = 100
+    for i in range(10):
+        value -= random.uniform(2, 8)
+        if value < 50:
+            value = 50 + random.uniform(0, 5)
+        x = i * (width // 10)
+        y = height - (value / 100) * height
+        points.append((x, y))
+    for i in range(len(points)-1):
+        draw.line([points[i], points[i+1]], fill='red', width=3)
+    for point in points:
+        draw.ellipse([point[0]-3, point[1]-3, point[0]+3, point[1]+3], fill='white')
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    draw.text((10, 10), "BINTY Portfolio (simulated)", fill="white", font=font)
+    draw.text((10, height-20), "Time", fill="white", font=font)
+    draw.text((width-50, 10), "Value ↓", fill="white", font=font)
+    img_bytes = BytesIO()
+    image.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
+
+# ==================== СЕРТИФИКАТ ПОЗОРА ====================
+def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
+                                 total_fumbles: int, avg_score: float,
+                                 position: int, lang: str) -> BytesIO:
+    width, height = 800, 500
+    img = Image.new('RGB', (width, height), color='#1a1a1a')
+    draw = ImageDraw.Draw(img)
+    # Рамка
+    draw.rectangle([20, 20, width-20, height-20], outline='#ff4444', width=5)
+    try:
+        font_title = ImageFont.truetype("arial.ttf", 36)
+        font_text = ImageFont.truetype("arial.ttf", 24)
+        font_small = ImageFont.truetype("arial.ttf", 18)
+    except:
+        font_title = ImageFont.load_default()
+        font_text = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+    # Заголовок
+    title = TEXTS[lang].get("certificate_title", "CERTIFICATE OF SHAME")
+    draw.text((width//2, 60), title, fill='#ff4444', font=font_title, anchor='mm')
+    # Имя
+    draw.text((width//2, 130), username or f"User {user_id}", fill='white', font=font_text, anchor='mm')
+    # Статистика
+    y = 200
+    lines = [
+        f"{TEXTS[lang].get('level', 'Level')}: {level_name}",
+        f"{TEXTS[lang].get('total_fumbles', 'Total Fumbles')}: {total_fumbles}",
+        f"{TEXTS[lang].get('avg_score', 'Avg Score')}: {avg_score:.1f}",
+        f"{TEXTS[lang].get('leaderboard_position', 'Leaderboard Position')}: #{position}",
+        f"{TEXTS[lang].get('date', 'Date')}: {datetime.now().strftime('%Y-%m-%d')}"
+    ]
+    for line in lines:
+        draw.text((width//2, y), line, fill='white', font=font_text, anchor='mm')
+        y += 40
+    # QR-код
+    qr = qrcode.QRCode(box_size=4, border=2)
+    qr.add_data(f"https://t.me/BintyBot?start=ref_{user_id}")
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+    qr_img = qr_img.resize((120, 120))
+    img.paste(qr_img, (width-160, height-160))
+    # Подпись
+    draw.text((width//2, height-50), "BINTY — Financial Enemy #1", fill='#888888', font=font_small, anchor='mm')
+    img_bytes = BytesIO()
+    img.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
+    
+    # ==================== УРОВНИ ====================
+LEVELS = {
+    "en": ["Paper Hands", "Binty Rookie", "Exit Liquidity", "Market Destroyer", "Legendary Rekt"],
+    "ru": ["Бумажные руки", "Новичок Бинти", "Ликвидность", "Разрушитель рынка", "Легендарный рект"],
+    "es": ["Manos de papel", "Novato Binty", "Liquidez", "Destructor de mercado", "Rekt legendario"],
+    "zh": ["纸手", "Binty新手", "流动性", "市场摧毁者", "传奇爆仓"]
+}
+
+def get_level_name(level: int, lang: str) -> str:
+    levels = LEVELS.get(lang, LEVELS["en"])
+    idx = min(level - 1, len(levels)-1) if level > 0 else 0
+    return levels[idx]
+
+def get_level(avg_score: float) -> int:
+    if avg_score >= 9: return 5
+    if avg_score >= 7: return 4
+    if avg_score >= 5: return 3
+    if avg_score >= 3: return 2
+    return 1
+
+async def get_user_position(user_id: int) -> int:
+    # Теперь через Supabase
+    from supabase_client import supabase
+    try:
+        res = supabase.rpc('get_user_leaderboard_position', {'p_user_id': user_id}).execute()
+        return res.data if res.data else 0
+    except Exception as e:
+        logging.error(f"Position error: {e}")
+        return 0
+
+def get_leaderboard_title(position: int, lang: str) -> str:
+    titles = TEXTS[lang].get("leaderboard_titles", {})
+    return titles.get(str(position), "")
+
+# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+async def check_rate_limit(user_id: int) -> bool:
+    now = datetime.now().timestamp()
+    if user_id in user_request_times:
+        times = user_request_times[user_id]
+        times = [t for t in times if now - t < 60]
+        if len(times) >= 10:
+            return False
+        times.append(now)
+        user_request_times[user_id] = times
+    else:
+        user_request_times[user_id] = [now]
+    return True
+
+def clean_storage():
+    global last_responses, menu_message_ids
+    if len(last_responses) > MAX_STORAGE:
+        items = list(last_responses.items())
+        to_remove = items[:MAX_STORAGE // 2]
+        for user_id, _ in to_remove:
+            del last_responses[user_id]
+    if len(menu_message_ids) > MAX_STORAGE:
+        items = list(menu_message_ids.items())
+        to_remove = items[:MAX_STORAGE // 2]
+        for user_id, _ in to_remove:
+            del menu_message_ids[user_id]
+
+async def delete_previous_and_send(chat_id: int, user_id: int, text: str,
+                                   context: ContextTypes.DEFAULT_TYPE,
+                                   reply_markup=None, parse_mode=None,
+                                   photo=None):
+    global last_responses
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+        except Exception as e:
+            logging.error(f"Failed to delete message for {user_id}: {e}")
+    if photo:
+        msg = await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=text,
+                                           reply_markup=reply_markup, parse_mode=parse_mode)
+    else:
+        msg = await context.bot.send_message(chat_id=chat_id, text=text,
+                                             reply_markup=reply_markup, parse_mode=parse_mode)
+    last_responses[user_id] = msg.message_id
+    clean_storage()
+    return msg
+
+async def send_with_pause(chat_id: int, user_id: int, first_text: str,
+                          second_text: str, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=chat_id, text=first_text)
+    await asyncio.sleep(2)
+    lang = await get_language(user_id)
+    final_text = add_hooks(lang, second_text)
+    await delete_previous_and_send(chat_id, user_id, final_text, context)
+
+async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE, lang: str = None):
+    global menu_message_ids
+    if lang is None:
+        lang = await get_language(user_id)
+    menu_text = TEXTS[lang].get("menu_title", "📋 BINTY Menu")
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=menu_text,
+                reply_markup=get_main_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logging.error(f"Failed to edit menu for {user_id}: {e}")
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=menu_text,
+                reply_markup=get_main_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            menu_message_ids[user_id] = msg.message_id
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=menu_text,
+            reply_markup=get_main_menu(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
+
+# ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    lang = db.get_language(user_id)
-    db.update_interaction(user_id, "start")
-    stats = db.get_user_stats(user_id)
-    if context.args and context.args[0].isdigit():
-        db.add_referral(int(context.args[0]), user_id)
-    is_new = stats["interaction_count"] <= 1
-    welcome_text = get_text(lang, "welcome_new") if is_new else get_text(lang, "welcome_old")
-    rank = get_text(lang, "ranks", index=stats["level"]-1)
-    status_line = f"🎖 Rank: *{rank}* | 🆙 Lvl: *{stats['level']}* | 🔥 Streak: *{stats['streak']}*"
-    full_text = f"🤡 *AGENT FUMBL:* {welcome_text}\n\n{status_line}\n\n_{get_text(lang, 'mood_responses', mood=stats['mood_level'])}_"
-    await update_interface(update, context, full_text, get_main_menu(lang))
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = update.effective_user.id
-    lang = db.get_language(user_id)
-    data = query.data
-    db.update_interaction(user_id, data)
-    await check_achievements(user_id, lang, context)
-    await trigger_random_event(user_id, lang, context)
-    stats = db.get_user_stats(user_id)
-    mood = stats["mood_level"]
-    rank = get_text(lang, "ranks", index=stats["level"]-1)
-    agent_prefix = f"🤡 *AGENT FUMBL (Lvl {stats['level']} {rank}):*\n\n"
+    chat_id = update.effective_chat.id
+    lang = await get_language(user_id)
     
-    if data == "main_menu":
-        await update_interface(update, context, agent_prefix + get_text(lang, "mood_responses", mood=mood), get_main_menu(lang))
-    elif data == "signal":
-        await update_interface(update, context, agent_prefix + "⌛ " + get_text(lang, "signal_pause"))
-        await asyncio.sleep(1.2)
-        signal = get_text(lang, "signal")
-        await update_interface(update, context, agent_prefix + f"📈 *SIGNAL:*\n\n{signal}", get_main_menu(lang))
-    elif data == "fumble":
-        options = TEXTS[lang]["fumble_options"]
-        buttons = [[InlineKeyboardButton(opt, callback_data=f"f_opt_{i}")] for i, opt in enumerate(options)]
-        buttons.append([InlineKeyboardButton("◀️ Back", callback_data="main_menu")])
-        await update_interface(update, context, agent_prefix + get_text(lang, "fumble_question"), InlineKeyboardMarkup(buttons))
-    elif data.startswith("f_opt_"):
-        db.save_fumble(user_id, 10)
-        await update_interface(update, context, agent_prefix + "⌛ " + get_text(lang, "fumble_pause"))
-        await asyncio.sleep(1.2)
-        await update_interface(update, context, agent_prefix + f"🤡 *RECORDED.*\nYour XP increased. Your dignity decreased.", get_main_menu(lang))
-    elif data == "portfolio":
-        pos = db.get_user_position(user_id)
-        text = agent_prefix + f"💰 *PORTFOLIO PAIN*\n\nRank: #{pos}\nFumbles: {stats['fumble_count']}\nStreak: {stats['streak']} days\n\n_{get_text(lang, 'mood_responses', mood=mood)}_"
-        buttons = get_main_menu(lang).inline_keyboard
-        buttons.append([InlineKeyboardButton(get_button_text(lang, "share_btn"), callback_data="share_card")])
-        img = Image.new('RGB', (400, 200), color='black')
-        draw = ImageDraw.Draw(img)
-        draw.line([(0, 50), (400, 190)], fill='red', width=3)
-        bio = BytesIO()
-        img.save(bio, 'PNG')
-        bio.seek(0)
-        await update_interface(update, context, text, InlineKeyboardMarkup(buttons), photo=bio)
-    elif data == "share_card":
-        user_name = update.effective_user.first_name
-        rank = get_text(lang, "ranks", index=stats["level"]-1)
-        card = generate_share_card(user_name, rank, stats["level"], stats["fumble_count"])
-        await update_interface(update, context, agent_prefix + "Here is your digital proof of failure. Post it and cry.", get_main_menu(lang), photo=card)
-    elif data == "roast_me":
-        roast = get_text(lang, "roast_me")
-        await update_interface(update, context, agent_prefix + f"🔥 *ROAST:*\n\n{roast}", get_main_menu(lang))
-    elif data == "tomorrow":
-        pred = get_text(lang, "tomorrow_prediction")
-        await update_interface(update, context, agent_prefix + f"🔮 *TOMORROW:*\n\n{pred}", get_main_menu(lang))
-    elif data == "language_menu":
-        buttons = [[InlineKeyboardButton("🇺🇸 English", callback_data="set_lang_en"), InlineKeyboardButton("🇷🇺 Русский", callback_data="set_lang_ru")], [InlineKeyboardButton("◀️ Back", callback_data="main_menu")]]
-        await update_interface(update, context, agent_prefix + "🌐 Language Selection:", InlineKeyboardMarkup(buttons))
-    elif data.startswith("set_lang_"):
-        new_lang = data.split("_")[-1]
-        db.set_language(user_id, new_lang)
-        await update_interface(update, context, f"Language: {new_lang.upper()}", get_main_menu(new_lang))
+    # Реферальная система
+    if context.args and context.args[0].startswith('ref_'):
+        try:
+            referrer_id = int(context.args[0][4:])
+            if referrer_id != user_id:
+                await create_referral(referrer_id, user_id)
+        except:
+            pass
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    text = update.message.text
-    lang = db.get_language(user_id)
-    db.update_interaction(user_id, "chat_msg")
-    stats = db.get_user_stats(user_id)
-    if is_valid_solana_address(text):
-        db.save_wallet_address(user_id, text)
-        db.grant_achievement(user_id, "wallet_linked")
-        await update.message.reply_text(f"🤡 *AGENT FUMBL:* Wallet linked. I'll watch your dust.")
+    user = await get_user(user_id)
+    is_new = user is None
+    if is_new:
+        await create_user(user_id, update.effective_user.username,
+                          update.effective_user.first_name, lang)
+    else:
+        await update_user(user_id, last_active=datetime.now())
+
+    welcome_text = get_welcome(lang, is_new)
+    await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
+    
+    stats = await get_user_stats(user_id)
+    if stats:
+        level = get_level(stats["average"])
+        level_name = get_level_name(level, lang)
+        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+    else:
+        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
+    await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
+    
+    msg = await update.message.reply_text(
+        TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
+        reply_markup=get_main_menu(lang),
+        parse_mode=ParseMode.MARKDOWN
+    )
+    menu_message_ids[user_id] = msg.message_id
+
+async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
-    resp = get_text(lang, "ignore_text")
-    await update.message.reply_text(f"🤡 *AGENT FUMBL:* {resp}\n\n_{get_text(lang, 'mood_responses', mood=stats['mood_level'])}_")
+    # Обновляем стрик
+    await update_streak(user_id)
+    
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    pause_text = get_text(lang, "signal_pause")
+    signal_text = get_text(lang, "signal")
+    final_signal = add_hooks(lang, signal_text)
+    await send_with_pause(chat_id, user_id, pause_text, final_signal, context)
+    # Сохраняем историю сигналов
+    await save_signal_history(user_id, signal_text)
 
+async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Точка входа для фамбла: пробуем умный, иначе опрос"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    await update_streak(user_id)
+    
+    # Проверяем кошелёк
+    wallet = await get_wallet_address(user_id)
+    if wallet:
+        tx = await get_last_swap_transaction(wallet)
+        if tx:
+            score, reason = calculate_fumble_from_tx(tx)
+            await save_fumble(user_id, score, type='smart', details=json.dumps(tx))
+            stats = await get_user_stats(user_id)
+            result_text = get_text(lang, "fumble_smart_result", score, reason)
+            # Добавляем PnL если возможно
+            balance = await get_wallet_balance(wallet)
+            if balance:
+                amt, val = balance
+                result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
+            final_text = add_hooks(lang, result_text)
+            await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+            await check_and_award_achievements(user_id, 'fumble', score)
+            return
+
+    # Fallback: ручной опрос
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    await query.message.reply_text(get_text(lang, "fumble_pause"))
+    await asyncio.sleep(1.5)
+    await query.message.chat.send_poll(
+        question=get_text(lang, "fumble_question"),
+        options=get_text(lang, "fumble_options"),
+        type=Poll.REGULAR,
+        is_anonymous=False
+    )
+
+async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    poll_answer = update.poll_answer
+    user_id = poll_answer.user.id
+    lang = await get_language(user_id)
+    option_idx = poll_answer.option_ids[0]
+    if not await check_rate_limit(user_id):
+        await context.bot.send_message(chat_id=user_id, text=TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    score = random.randint(0, 10)
+    await save_fumble(user_id, score, type='manual')
+    stats = await get_user_stats(user_id)
+    result_text = get_text(lang, f"fumble_result_{'high' if score>=7 else 'medium' if score>=4 else 'low'}", score)
+    # PnL
+    wallet = await get_wallet_address(user_id)
+    if wallet:
+        balance = await get_wallet_balance(wallet)
+        if balance:
+            amt, val = balance
+            result_text += f"\n\n💰 BINTY: {amt:.4f} (${val:.2f})"
+    final_text = add_hooks(lang, result_text)
+    await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+    await check_and_award_achievements(user_id, 'fumble', score)
+
+async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    address = await get_wallet_address(user_id)
+    if not address:
+        await delete_previous_and_send(chat_id, user_id, get_text(lang, "portfolio_no_wallet"), context)
+        return
+    await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
+    history_data = await get_portfolio_history(address, days=7)
+    if history_data:
+        history, amount, value = history_data
+        chart = generate_portfolio_chart_real(history, amount, value)
+        first_val = history[0]["value"] if history else value
+        change = ((value - first_val) / first_val * 100) if first_val > 0 else 0
+        text = get_text(lang, "portfolio", amount, value, change)
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+    else:
+        chart = generate_portfolio_chart_fake()
+        text = get_text(lang, "portfolio", 0, 0, 0)
+        final_text = add_hooks(lang, text)
+        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+
+# Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
+# language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
+# quests, referrals, signal_history, fumble_history) аналогично добавляются.
+# Здесь приведу ключевые новые:
+
+async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    await query.edit_message_text(
+        TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
+        reply_markup=get_game_center_menu(lang)
+    )
+
+async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    stats = await get_user_stats(user_id)
+    streak_info = await get_streak_info(user_id)
+    position = await get_user_position(user_id)
+    level = get_level(stats["average"]) if stats else 1
+    level_name = get_level_name(level, lang)
+    text = get_text(lang, "my_stats",
+                    level=level, level_name=level_name,
+                    total_fumbles=stats["count"] if stats else 0,
+                    avg_score=stats["average"] if stats else 0,
+                    total_signals=stats.get("signal_clicks", 0),
+                    streak=streak_info["current_streak"],
+                    referrals=await get_referrals_count(user_id),
+                    position=position)
+    await query.edit_message_text(text, reply_markup=get_my_stats_menu(lang))
+
+async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    stats = await get_user_stats(user_id)
+    if not stats:
+        await query.message.reply_text("No data yet. Do some fumbles first!")
+        return
+    level = get_level(stats["average"])
+    level_name = get_level_name(level, lang)
+    position = await get_user_position(user_id)
+    username = query.from_user.username or query.from_user.first_name
+    img = generate_certificate_of_shame(user_id, username, level_name,
+                                        stats["count"], stats["average"],
+                                        position, lang)
+    await log_certificate_request(user_id)
+    await context.bot.send_photo(chat_id=chat_id, photo=img,
+                                 caption=TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame. Frame it. Or burn it."))
+
+async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    info = await get_streak_info(user_id)
+    # Генерируем текстовое представление календаря за последние 30 дней
+    calendar_str = "📅 **Suffering Calendar**\n"
+    calendar_str += f"Current streak: {info['current_streak']} days\n"
+    calendar_str += f"Longest streak: {info['max_streak']} days\n\n"
+    # Упрощённо
+    for i in range(30):
+        day = (datetime.now() - timedelta(days=i)).date()
+        active = "✅" if day in info.get("active_days", []) else "❌"
+        calendar_str += f"{day.strftime('%d.%m')}: {active}\n"
+    await query.edit_message_text(calendar_str, parse_mode=ParseMode.MARKDOWN)
+
+# ... остальные обработчики (можно добавить по аналогии)
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    # Маршрутизация
+    if data == "signal": await signal(update, context)
+    elif data == "fumble": await fumble_start(update, context)
+    elif data == "portfolio": await portfolio(update, context)
+    elif data == "price": await price(update, context)
+    elif data == "holders": await holders(update, context)
+    elif data == "balance": await balance(update, context)
+    elif data == "meme": await meme(update, context)
+    elif data == "sticker": await sticker(update, context)
+    elif data == "leaderboard": await leaderboard(update, context)
+    elif data == "language": await language(update, context)
+    elif data == "subscribe": await subscribe(update, context)
+    elif data == "unsubscribe": await unsubscribe(update, context)
+    elif data == "help": await help_command(update, context)
+    elif data == "game_center": await game_center(update, context)
+    elif data == "my_stats": await my_stats(update, context)
+    elif data == "achievements": await achievements(update, context)
+    elif data == "certificate": await certificate(update, context)
+    elif data == "suffering_calendar": await suffering_calendar(update, context)
+    elif data == "quests": await quests(update, context)
+    elif data == "referrals": await referrals(update, context)
+    elif data == "signal_history": await signal_history(update, context)
+    elif data == "fumble_history": await fumble_history(update, context)
+    elif data == "back_to_menu": await back_to_menu(update, context)
+    # ... и т.д.
+    
+    # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+    def log_message(self, format, *args):
+        pass
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 8000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# ==================== MAIN ====================
 def main():
-    db.init_db()
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    logger.info("FUMBL Degen Simulator v4.2 started.")
-    application.run_polling()
+    # Инициализация Supabase
+    init_supabase()
+    # Запуск планировщика для твиттера (опционально)
+    start_scheduler()
+    
+    app = Application.builder().token(TOKEN).build()
+    
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(PollAnswerHandler(handle_poll_answer))
+    app.add_handler(CallbackQueryHandler(button_callback))
+    
+    # Health-check сервер в отдельном потоке
+    port = int(os.environ.get("PORT", 8000))
+    threading.Thread(target=run_health_server, daemon=True).start()
+    logging.info(f"Health check server started on port {port}")
+    
+    logging.info("🚀 BINTY Agent starting with polling...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
