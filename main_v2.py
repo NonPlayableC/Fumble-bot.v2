@@ -1032,14 +1032,19 @@ async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     
-    pack = random.choice(["regular", "gif"])
-    sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
-    if sticker_id:
-        await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-    else:
-        text = get_text(lang, "sticker")
-        final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context)
+    # Ссылка на ваш стикерпак
+    sticker_pack_url = "https://t.me/addstickers/BintyStickers"
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎨 Добавить стикеры BINTY", url=sticker_pack_url)]
+    ])
+    
+    await delete_previous_and_send(
+        chat_id, user_id,
+        "🦝 Добавь мой стикерпак и страдай красиво 👇",
+        context,
+        reply_markup=kb
+    )
         
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
