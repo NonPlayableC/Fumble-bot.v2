@@ -824,8 +824,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await check_and_award_achievements(user_id, 'fumble', score)
             return
         else:
-    # Сообщаем, что переходим к ручному опросу
-    await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
+            # Сообщаем, что переходим к ручному опросу
+            await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
     # Fallback: ручной опрос
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
@@ -924,27 +924,6 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     final_text = add_hooks(lang, price_text)
     await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-    
-async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    lang = await get_language(user_id)
-    await query.answer()
-    
-    if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
-        return
-    
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    count = await get_holders()
-    
-    if count is None:
-        await delete_previous_and_send(chat_id, user_id, get_text(lang, "holders_unavailable"), context)
-    else:
-        text = get_text(lang, "holders", count)
-        final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
         
 async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1301,6 +1280,28 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
         TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
         reply_markup=get_game_center_menu(lang)
     )
+    
+async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает список полученных ачивок"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    earned = await get_user_achievements(user_id)
+    
+    if not earned:
+        text = get_text(lang, "no_achievements")
+    else:
+        lines = [f"✅ {ach.get('achievement_key', '')}" for ach in earned]
+        text = get_text(lang, "achievements_list").format("\n".join(lines))
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ])
+    )
 
 async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1359,6 +1360,14 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         active = "✅" if day in info.get("active_days", []) else "❌"
         calendar_str += f"{day.strftime('%d.%m')}: {active}\n"
     await query.edit_message_text(calendar_str, parse_mode=ParseMode.MARKDOWN)
+    
+async def delete_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await delete_wallet_address(user_id)
+    await query.answer()
+    await query.message.reply_text(get_text(lang, "wallet_deleted"))
 
 # ... остальные обработчики (можно добавить по аналогии)
 
@@ -1396,6 +1405,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "cancel_unsubscribe": await cancel_action(update, context)
     elif data == "lb_next": await lb_next(update, context)
     elif data == "lb_prev": await lb_prev(update, context)
+    elif data == "delete_wallet": await delete_wallet(update, context)
     elif data.startswith("lang_"):
         lang_code = data.split("_")[1]
         user_id = query.from_user.id
@@ -1405,7 +1415,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=get_text(lang_code, "lang_changed"))
         await update_menu(chat_id, user_id, context, lang_code)
     
-    # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
+# ... конец button_callback ...
+
+# ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -1418,6 +1430,7 @@ def run_health_server():
     port = int(os.environ.get("PORT", 8000))
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
+
 
 # ==================== MAIN ====================
 def main():
