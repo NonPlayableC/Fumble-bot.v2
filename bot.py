@@ -1630,9 +1630,9 @@ def main():
         job_queue.run_repeating(lambda ctx: asyncio.create_task(send_signal_of_the_day()), interval=86400, first=60)
     # =========================================
     
-    port = int(os.environ.get("PORT", 8000))
-    threading.Thread(target=run_health_server, daemon=True).start()
-    logging.info(f"Health check server started on port {port}")
+    #port = int(os.environ.get("PORT", 8000))
+    #threading.Thread(target=run_health_server, daemon=True).start()
+    #logging.info(f"Health check server started on port {port}")
     
     logging.info("🚀 BINTY Agent starting with polling...")
     app.run_polling()
