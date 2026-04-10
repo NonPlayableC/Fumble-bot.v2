@@ -803,7 +803,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pause_text = get_text(lang, "signal_pause")
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
     
-    await asyncio.sleep(2)
+    await asyncio.sleep(3)
     
     # Получаем сигнал
     signal_text = get_text(lang, "signal")
