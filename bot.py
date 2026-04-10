@@ -35,8 +35,19 @@ from supabase_client import (
     save_signal_history, get_signal_history,
     save_fumble_history, get_fumble_history,
     log_certificate_request,
-    check_and_award_achievements
+    check_and_award_achievements,
+    generate_daily_quests_for_user,
+    update_quest_progress,
+    claim_quest_reward,
+    get_user_active_quests,
+    get_user_completed_quests,
+    give_referral_bonus,
+    get_portfolio_roast,
+    send_signal_of_the_day,
+    send_auto_signals,
+    get_all_achievements
 )
+    
 from texts import TEXTS, get_text, add_hooks
 from twitter_poster import start_scheduler  # опционально
 
@@ -743,6 +754,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             referrer_id = int(context.args[0][4:])
             if referrer_id != user_id:
                 await create_referral(referrer_id, user_id)
+                await check_and_award_achievements(referrer_id, 'referral')
         except:
             pass
 
@@ -784,6 +796,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     # Обновляем стрик
     await update_streak(user_id)
+    await update_quest_progress(user_id, 'signal_count', 1)
     
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     pause_text = get_text(lang, "signal_pause")
@@ -792,6 +805,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_with_pause(chat_id, user_id, pause_text, final_signal, context)
     # Сохраняем историю сигналов
     await save_signal_history(user_id, signal_text)
+    await check_and_award_achievements(user_id, 'signal')
 
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Точка входа для фамбла: пробуем умный, иначе опрос"""
@@ -803,28 +817,32 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+    
     await update_streak(user_id)
+    await update_quest_progress(user_id, 'fumble_count', 1)
     
     # Проверяем кошелёк
     wallet = await get_wallet_address(user_id)
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
+            # Это умный фамбл
+            await update_quest_progress(user_id, 'smart_fumble', 1)
+            
             score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
             await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
-            stats = await get_user_stats(user_id)
+            
             result_text = get_text(lang, "fumble_smart_result", score, reason)
-            # Добавляем PnL если возможно
             balance = await get_wallet_balance(wallet)
             if balance:
                 amt, val = balance
                 result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
+            
             final_text = add_hooks(lang, result_text)
             await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
             await check_and_award_achievements(user_id, 'fumble', score)
             return
         else:
-            # Сообщаем, что переходим к ручному опросу
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
     # Fallback: ручной опрос
@@ -848,6 +866,7 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     score = random.randint(0, 10)
     await save_fumble(user_id, score, type='manual')
+    await update_quest_progress(user_id, 'fumble_count', 1)
     stats = await get_user_stats(user_id)
     result_text = get_text(lang, f"fumble_result_{'high' if score>=7 else 'medium' if score>=4 else 'low'}", score)
     # PnL
@@ -991,6 +1010,7 @@ async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_T
             amount, value = result
             await save_wallet_address(user_id, address)
             await check_and_award_achievements(user_id, 'wallet')
+            roast = await get_portfolio_roast(address, lang)
             text = get_text(lang, "balance_response", address, amount, value)
             final_text = add_hooks(lang, text)
             await update.message.reply_text(final_text, parse_mode=ParseMode.MARKDOWN)
@@ -1346,26 +1366,77 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает список полученных ачивок"""
+    """Показывает список всех ачивок и прогресс"""
     query = update.callback_query
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
     
+    # Получаем полученные ачивки
     earned = await get_user_achievements(user_id)
+    earned_keys = set([a["achievement_key"] for a in earned]) if earned else set()
     
-    if not earned:
-        text = get_text(lang, "no_achievements")
-    else:
-        lines = [f"✅ {ach.get('achievement_key', '')}" for ach in earned]
-        text = get_text(lang, "achievements_list").format("\n".join(lines))
+    # Получаем все ачивки
+    all_achievements = await get_all_achievements(lang)
+    
+    # Статистика
+    total_earned = len(earned_keys)
+    total_all = len(all_achievements)
+    
+    text = f"🏅 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
+    text += f"📊 Progress: {total_earned}/{total_all}\n\n"
+    
+    # Группируем по категориям
+    categories = {
+        "fumble": {"icon": "🤡", "name": {"en": "Fumbles", "ru": "Фамблы", "es": "Fumbles", "zh": "失误"}},
+        "signal": {"icon": "📡", "name": {"en": "Signals", "ru": "Сигналы", "es": "Señales", "zh": "信号"}},
+        "streak": {"icon": "🔥", "name": {"en": "Streaks", "ru": "Серии", "es": "Rachas", "zh": "连续"}},
+        "wallet": {"icon": "🔗", "name": {"en": "Wallet", "ru": "Кошелёк", "es": "Cartera", "zh": "钱包"}},
+        "social": {"icon": "🤝", "name": {"en": "Social", "ru": "Соцсети", "es": "Social", "zh": "社交"}},
+        "special": {"icon": "🎭", "name": {"en": "Special", "ru": "Особые", "es": "Especial", "zh": "特殊"}}
+    }
+    
+    # Распределяем ачивки по категориям
+    cat_achievements = {cat: [] for cat in categories}
+    
+    for ach in all_achievements:
+        key = ach["achievement_key"]
+        earned = "✅" if key in earned_keys else "❌"
+        name = ach.get(f"name_{lang}", ach.get("name_en", key))
+        cat_achievements[get_category(key)].append(f"{earned} {name}")
+    
+    for cat, items in cat_achievements.items():
+        if items:
+            cat_name = categories[cat]["name"].get(lang, cat)
+            cat_icon = categories[cat]["icon"]
+            text += f"\n{cat_icon} *{cat_name}:*\n"
+            for item in items[:5]:  # Показываем до 5 в каждой категории
+                text += f"{item}\n"
+    
+    # Кнопка назад
+    keyboard = [[InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]]
     
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-        ])
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
     )
+
+
+def get_category(key: str) -> str:
+    """Определяет категорию ачивки по ключу"""
+    if key in ["first_fumble", "silver_loser", "gold_loser", "platinum_loser", "king_of_bottom"]:
+        return "fumble"
+    elif key in ["signal_master", "signal_legend"]:
+        return "signal"
+    elif key in ["masochist", "godless"]:
+        return "streak"
+    elif key in ["hell_holder", "crypto_archaeologist", "paranoid"]:
+        return "wallet"
+    elif key in ["referral_baron"]:
+        return "social"
+    else:
+        return "special"
 
 async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1381,11 +1452,11 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     level=level, level_name=level_name,
                     total_fumbles=stats["count"] if stats else 0,
                     avg_score=stats["average"] if stats else 0,
-                    total_signals=stats.get("signal_clicks", 0),
+                    total_signals=stats.get("signal_clicks", 0) if stats else 0,
                     streak=streak_info["current_streak"],
                     referrals=await get_referrals_count(user_id),
                     position=position)
-    await query.edit_message_text(text, reply_markup=get_my_stats_menu(lang))
+    await query.edit_message_text(text, reply_markup=get_my_stats_menu(lang), parse_mode=ParseMode.MARKDOWN)
 
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1470,6 +1541,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "lb_next": await lb_next(update, context)
     elif data == "lb_prev": await lb_prev(update, context)
     elif data == "delete_wallet": await delete_wallet(update, context)
+    elif data.startswith("claim_quest_"): await claim_quest(update, context)
     elif data.startswith("lang_"):
         lang_code = data.split("_")[1]
         user_id = query.from_user.id
@@ -1498,9 +1570,7 @@ def run_health_server():
 
 # ==================== MAIN ====================
 def main():
-    # Инициализация Supabase
     init_supabase()
-    # Запуск планировщика для твиттера (опционально)
     start_scheduler()
     
     app = Application.builder().token(TOKEN).build()
@@ -1511,7 +1581,15 @@ def main():
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(button_callback))
     
-    # Health-check сервер в отдельном потоке
+    # ========== ДОБАВИТЬ ПЛАНИРОВЩИК ==========
+    job_queue = app.job_queue
+    if job_queue:
+        # Авто-сигналы каждые 6 часов
+        job_queue.run_repeating(lambda ctx: asyncio.create_task(send_auto_signals()), interval=21600, first=10)
+        # Сигнал дня раз в 24 часа
+        job_queue.run_repeating(lambda ctx: asyncio.create_task(send_signal_of_the_day()), interval=86400, first=60)
+    # =========================================
+    
     port = int(os.environ.get("PORT", 8000))
     threading.Thread(target=run_health_server, daemon=True).start()
     logging.info(f"Health check server started on port {port}")
