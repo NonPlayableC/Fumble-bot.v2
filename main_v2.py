@@ -264,50 +264,175 @@ async def get_last_swap_transaction(wallet: str) -> Optional[Dict[str, Any]]:
                     return tx
     return None
 
-def calculate_fumble_from_tx(tx: Dict[str, Any]) -> Tuple[int, str]:
-    """Вычисляет счёт фамбла и комментарий на основе транзакции"""
-    # Заглушка: в реальности парсим вход/выход, цены, убыток
-    # Возвращаем (score, reason)
-    # Здесь упрощённо: если есть поле с убытком, используем его
-    loss_percent = random.uniform(-50, 10)  # -50% до +10%
-    if loss_percent <= -30:
-        score = random.randint(9, 10)
-        reason = f"Убыток {loss_percent:.1f}% — ты мастер самоуничтожения."
-    elif loss_percent <= -15:
-        score = random.randint(7, 8)
-        reason = f"Убыток {loss_percent:.1f}% — неплохо, но мог и больше."
-    elif loss_percent < 0:
-        score = random.randint(5, 6)
-        reason = f"Убыток {loss_percent:.1f}% — так, разминка."
-    else:
-        score = random.randint(0, 2)
-        reason = f"Прибыль {loss_percent:.1f}%? Ошибка выжившего. Скоро исправим."
-    return score, reason
-
-async def get_portfolio_history(address: str, days: int = 7):
-    if not address or not TOKEN_ADDRESS:
-        return None
+def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str, Dict[str, Any]]:
+    """
+    Парсит транзакцию из Helius и вычисляет фамбл-счёт.
+    Возвращает: (score, reason, details)
+    """
+    details = {}
+    
     try:
-        balance_result = await get_wallet_balance(address)
-        if not balance_result:
-            return None
-        current_amount, current_value = balance_result
-        if current_amount == 0:
-            return None
-        history = []
-        base_price, _ = await get_price()
-        if not base_price:
-            base_price = 0.001
-        for i in range(days):
-            factor = 1 - (i * random.uniform(0.02, 0.08))
-            factor = max(0.3, factor)
-            price = base_price * factor
-            value = current_amount * price
-            history.append({"day": i+1, "value": value})
-        return history, current_amount, current_value
+        # Определяем тип транзакции (SWAP)
+        if tx.get("type") != "SWAP":
+            return random.randint(5, 8), "Не могу определить тип сделки, но выглядит плохо.", {}
+        
+        # Извлекаем информацию о переводах токенов
+        token_transfers = tx.get("tokenTransfers", [])
+        if not token_transfers:
+            return random.randint(5, 8), "Не вижу, что ты купил или продал. Но уверен — что-то пошло не так.", {}
+        
+        # Определяем, что купили и что продали
+        sent = None  # что отправил пользователь
+        received = None  # что получил пользователь
+        
+        for transfer in token_transfers:
+            from_user = transfer.get("fromUserAccount", "")
+            to_user = transfer.get("toUserAccount", "")
+            mint = transfer.get("mint", "")
+            amount = float(transfer.get("tokenAmount", 0))
+            
+            if from_user == wallet:
+                sent = {"mint": mint, "amount": amount}
+            elif to_user == wallet:
+                received = {"mint": mint, "amount": amount}
+        
+        if not sent or not received:
+            return random.randint(5, 8), "Не понял, что ты купил, а что продал. Но ты точно что-то натворил.", {}
+        
+        # Определяем направление сделки
+        # Если отправил SOL или USDC — это покупка
+        SOL_MINT = "So11111111111111111111111111111111111111112"
+        USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        
+        is_buy = sent["mint"] in [SOL_MINT, USDC_MINT]
+        
+        # Получаем цены через DexScreener
+        import asyncio
+        
+        async def get_token_price(mint: str) -> float:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    url = f"https://api.dexscreener.com/latest/dex/tokens/{mint}"
+                    async with session.get(url, headers=HEADERS) as resp:
+                        data = await resp.json()
+                        pairs = data.get("pairs", [])
+                        if pairs:
+                            return float(pairs[0].get("priceUsd", 0))
+            except:
+                pass
+            return 0.0
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        if is_buy:
+            # Купил токен за SOL/USDC
+            bought_mint = received["mint"]
+            bought_amount = received["amount"]
+            spent_amount = sent["amount"]
+            spent_mint = sent["mint"]
+            
+            # Текущая цена купленного токена
+            current_price = loop.run_until_complete(get_token_price(bought_mint))
+            
+            # Цена покупки (сколько потратил USD / сколько получил токенов)
+            spent_price = loop.run_until_complete(get_token_price(spent_mint)) if spent_mint != SOL_MINT else 0
+            if spent_mint == SOL_MINT:
+                # SOL цена через DexScreener
+                spent_price = loop.run_until_complete(get_token_price(SOL_MINT))
+            
+            spent_usd = spent_amount * spent_price if spent_price > 0 else spent_amount * 20  # fallback
+            
+            entry_price = spent_usd / bought_amount if bought_amount > 0 else 0
+            current_value = bought_amount * current_price
+            
+            pnl_usd = current_value - spent_usd
+            pnl_percent = ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0
+            
+            details = {
+                "type": "buy",
+                "bought_mint": bought_mint,
+                "bought_amount": bought_amount,
+                "spent_usd": spent_usd,
+                "entry_price": entry_price,
+                "current_price": current_price,
+                "pnl_usd": pnl_usd,
+                "pnl_percent": pnl_percent
+            }
+            
+            # Формируем причину
+            if pnl_percent <= -30:
+                score = random.randint(9, 10)
+                reason = f"Купил токен, он упал на {abs(pnl_percent):.1f}%. Вход был по ${entry_price:.6f}, сейчас ${current_price:.6f}. Убыток ${abs(pnl_usd):.2f}. Классика."
+            elif pnl_percent <= -15:
+                score = random.randint(7, 8)
+                reason = f"Купил, а оно упало на {abs(pnl_percent):.1f}%. Вход ${entry_price:.6f} → сейчас ${current_price:.6f}. Минус ${abs(pnl_usd):.2f}."
+            elif pnl_percent < 0:
+                score = random.randint(5, 6)
+                reason = f"Небольшой минус {abs(pnl_percent):.1f}%. Потерял ${abs(pnl_usd):.2f}. Разминка."
+            else:
+                score = random.randint(0, 2)
+                reason = f"Ты в плюсе на {pnl_percent:.1f}%? Подозрительно. Прибыль ${pnl_usd:.2f}. Я разочарован."
+                
+        else:
+            # Продал токен
+            sold_mint = sent["mint"]
+            sold_amount = sent["amount"]
+            received_mint = received["mint"]
+            received_amount = received["amount"]
+            
+            # Цена продажи
+            received_price = loop.run_until_complete(get_token_price(received_mint)) if received_mint != SOL_MINT else 0
+            if received_mint == SOL_MINT:
+                received_price = loop.run_until_complete(get_token_price(SOL_MINT))
+            if received_mint == USDC_MINT:
+                received_price = 1.0
+                
+            received_usd = received_amount * received_price if received_price > 0 else received_amount
+            
+            # Текущая цена проданного токена (чтобы посмотреть, что стало)
+            current_price = loop.run_until_complete(get_token_price(sold_mint))
+            
+            # Условная цена покупки (не можем знать точно без истории)
+            # Используем текущую цену как ориентир
+            estimated_entry = current_price * random.uniform(0.7, 1.5)  # допущение
+            
+            pnl_percent = ((received_usd / sold_amount) - estimated_entry) / estimated_entry * 100 if estimated_entry > 0 else 0
+            pnl_usd = received_usd - (sold_amount * estimated_entry)
+            
+            details = {
+                "type": "sell",
+                "sold_mint": sold_mint,
+                "sold_amount": sold_amount,
+                "received_usd": received_usd,
+                "current_price": current_price,
+                "pnl_usd": pnl_usd,
+                "pnl_percent": pnl_percent
+            }
+            
+            if pnl_percent <= -30:
+                score = random.randint(9, 10)
+                reason = f"Продал на дне. Убыток {abs(pnl_percent):.1f}%. Получил ${received_usd:.2f}. А мог бы..."
+            elif pnl_percent <= -15:
+                score = random.randint(7, 8)
+                reason = f"Продал в минус {abs(pnl_percent):.1f}%. Выручил ${received_usd:.2f}. Не лучший выход."
+            elif pnl_percent < 0:
+                score = random.randint(5, 6)
+                reason = f"Продал с небольшим убытком {abs(pnl_percent):.1f}%. ${received_usd:.2f} в кармане."
+            else:
+                score = random.randint(0, 2)
+                reason = f"Продал в плюс {pnl_percent:.1f}%? Везение. Получил ${received_usd:.2f}. Но я слежу."
+        
+        loop.close()
+        
+        # Добавляем случайную вариацию ±1
+        score = max(0, min(10, score + random.randint(-1, 1)))
+        
+        return score, reason, details
+        
     except Exception as e:
-        logging.error(f"Failed to get portfolio history: {e}")
-        return None
+        logging.error(f"Error parsing transaction: {e}")
+        return random.randint(5, 8), "Что-то сломалось при анализе. Но я уверен — ты проиграл.", {}
 
 def generate_portfolio_chart_real(history, current_amount, current_value):
     # ... (оставляем как было, только подпись "BINTY Portfolio")
@@ -618,8 +743,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
-            score, reason = calculate_fumble_from_tx(tx)
-            await save_fumble(user_id, score, type='smart', details=json.dumps(tx))
+            score, reason, tx_details = calculate_fumble_from_tx(tx, wallet)
+            await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
             stats = await get_user_stats(user_id)
             result_text = get_text(lang, "fumble_smart_result", score, reason)
             # Добавляем PnL если возможно
@@ -631,6 +756,9 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
             await check_and_award_achievements(user_id, 'fumble', score)
             return
+        else:
+    # Сообщаем, что переходим к ручному опросу
+    await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
     # Fallback: ручной опрос
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
