@@ -207,6 +207,17 @@ async def get_fumble_history(user_id: int, limit: int = 10) -> List[Dict]:
     except Exception as e:
         logging.error(f"Error getting fumble history for {user_id}: {e}")
         return []
+        
+# ==================== ВЛИЯНИЕ СИГНАЛА НА ФАМБЛ ====================
+
+async def check_signal_fumble_bonus(user_id: int) -> int:
+    """Проверяет, был ли сигнал в последний час, и возвращает бонус +1 если да"""
+    try:
+        one_hour_ago = (datetime.now() - timedelta(hours=1)).isoformat()
+        res = supabase.table("signal_history").select("created_at").eq("user_id", user_id).gte("created_at", one_hour_ago).execute()
+        return 1 if res.data else 0
+    except:
+        return 0
 
 # ==================== ЛИДЕРБОРД ====================
 
@@ -349,6 +360,63 @@ async def get_signal_history(user_id: int, limit: int = 10) -> List[Dict]:
     except Exception as e:
         logging.error(f"Error getting signal history for {user_id}: {e}")
         return []
+        
+    
+# ==================== СИГНАЛ ДНЯ И АВТО-СИГНАЛЫ ====================
+
+async def get_signal_of_the_day() -> str:
+    """Возвращает случайный сигнал дня из истории"""
+    try:
+        res = supabase.table("signal_history").select("signal_text").order("created_at", desc=True).limit(100).execute()
+        if res.data:
+            return random.choice(res.data)["signal_text"]
+    except:
+        pass
+    return "Buy high, sell low. You know the drill. 💀"
+
+async def send_signal_of_the_day():
+    """Отправляет сигнал дня всем подписчикам"""
+    from texts import get_text, add_hooks
+    import telegram
+    
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        return
+    
+    bot = telegram.Bot(token=bot_token)
+    subscribers = await get_all_subscribed_users()
+    signal_text = await get_signal_of_the_day()
+    
+    for user_id in subscribers:
+        try:
+            lang = await get_language(user_id)
+            text = f"📡 **Signal of the Day**\n\n{signal_text}\n\n*Sent to all subscribers. Suffer together.*"
+            final_text = add_hooks(lang, text)
+            await bot.send_message(chat_id=user_id, text=final_text, parse_mode="Markdown")
+        except:
+            pass
+
+async def send_auto_signals():
+    """Отправляет авто-сигналы всем подписчикам (каждые 6 часов)"""
+    import telegram
+    from texts import get_text, add_hooks
+    
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        return
+    
+    bot = telegram.Bot(token=bot_token)
+    subscribers = await get_all_subscribed_users()
+    
+    for user_id in subscribers:
+        try:
+            lang = await get_language(user_id)
+            signal_text = get_text(lang, "signal")
+            text = get_text(lang, "auto_signal", signal_text)
+            final_text = add_hooks(lang, text)
+            await bot.send_message(chat_id=user_id, text=final_text, parse_mode="Markdown")
+        except:
+            pass
 
 # ==================== РЕФЕРАЛЫ ====================
 
@@ -508,6 +576,62 @@ async def log_certificate_request(user_id: int) -> bool:
 # Импортируем в конец файла, чтобы избежать циклических импортов
 from texts import get_text
 
+# ==================== ШУТКИ ПРО ПОРТФЕЛЬ ====================
+
+async def get_portfolio_roast(address: str, lang: str = "en") -> str:
+    """Возвращает саркастичный комментарий про портфель"""
+    try:
+        # Получаем все токены на кошельке
+        url = f"https://public-api.solscan.io/account/tokens?account={address}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers={"User-Agent": "Mozilla/5.0"}) as resp:
+                tokens = await resp.json()
+                
+        if not tokens:
+            ROASTS = {
+                "en": ["Empty wallet. Like your brain.", "Nothing here. Just like your trading skills."],
+                "ru": ["Пустой кошелёк. Как твоя голова.", "Ничего нет. Как и твоих навыков."],
+                "es": ["Cartera vacía. Como tu cerebro.", "Nada aquí. Como tus habilidades."],
+                "zh": ["空钱包。像你的脑袋。", "什么都没有。就像你的技能。"]
+            }
+            return random.choice(ROASTS.get(lang, ROASTS["en"]))
+        
+        # Считаем количество токенов
+        count = len(tokens)
+        if count > 10:
+            ROASTS = {
+                "en": [f"{count} tokens? You're a collector of garbage.", "Diversified portfolio of shitcoins. Impressive."],
+                "ru": [f"{count} токенов? Коллекционер мусора.", "Диверсифицированный портфель шиткоинов. Впечатляет."],
+                "es": [f"{count} tokens? Coleccionista de basura.", "Cartera diversificada de mierdacoins. Impresionante."],
+                "zh": [f"{count}个代币？垃圾收藏家。", "多元化的垃圾币组合。令人印象深刻。"]
+            }
+            return random.choice(ROASTS.get(lang, ROASTS["en"]))
+        elif count > 3:
+            ROASTS = {
+                "en": [f"{count} tokens. All red, I assume.", "A few bags. Heavy ones."],
+                "ru": [f"{count} токена. Все в минус, полагаю.", "Несколько мешков. Тяжёлых."],
+                "es": [f"{count} tokens. Todos en rojo, asumo.", "Unas cuantas bolsas. Pesadas."],
+                "zh": [f"{count}个代币。我猜全在亏损。", "几个袋子。很重。"]
+            }
+            return random.choice(ROASTS.get(lang, ROASTS["en"]))
+        else:
+            ROASTS = {
+                "en": ["Just one token? All eggs in one basket. Dumb.", "No diversification. Brave. And stupid."],
+                "ru": ["Один токен? Все яйца в одной корзине. Глупо.", "Никакой диверсификации. Смело. И тупо."],
+                "es": ["¿Un solo token? Todos los huevos en una cesta. Tonto.", "Sin diversificación. Valiente. Y estúpido."],
+                "zh": ["只有一个代币？所有鸡蛋放一个篮子。蠢。", "没有多元化。勇敢。且愚蠢。"]
+            }
+            return random.choice(ROASTS.get(lang, ROASTS["en"]))
+            
+    except:
+        ROASTS = {
+            "en": ["Can't even check your wallet. Pathetic.", "Wallet check failed. Like everything you do."],
+            "ru": ["Даже кошелёк проверить не могу. Жалко.", "Проверка не удалась. Как и всё, что ты делаешь."],
+            "es": ["Ni siquiera puedo revisar tu cartera. Patético.", "Falló la verificación. Como todo lo que haces."],
+            "zh": ["连钱包都查不了。可悲。", "检查失败。就像你做的一切。"]
+        }
+        return random.choice(ROASTS.get(lang, ROASTS["en"]))
+
 # ==================== КВЕСТЫ (ПОЛНАЯ СИСТЕМА) ====================
 
 async def generate_daily_quests_for_user(user_id: int) -> List[Dict]:
@@ -659,6 +783,37 @@ async def notify_quest_completed(user_id: int, quest: Dict):
             await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
     except Exception as e:
         logging.error(f"Error notifying quest completion: {e}")
+        
+
+async def give_referral_bonus(referrer_id: int, referred_id: int):
+    """Начисляет бонус $BINTY рефереру и приглашённому при первом фамбле"""
+    try:
+        ref = supabase.table("referrals").select("reward_given").eq("referrer_id", referrer_id).eq("referred_id", referred_id).execute()
+        if ref.data and ref.data[0].get("reward_given"):
+            return
+        
+        supabase.table("user_balances").upsert({
+            "user_id": referrer_id,
+            "amount": supabase.rpc('increment_balance', {'p_user_id': referrer_id, 'p_amount': 100})
+        }).execute()
+        
+        supabase.table("user_balances").upsert({
+            "user_id": referred_id,
+            "amount": supabase.rpc('increment_balance', {'p_user_id': referred_id, 'p_amount': 50})
+        }).execute()
+        
+        supabase.table("referrals").update({"reward_given": True}).eq("referrer_id", referrer_id).eq("referred_id", referred_id).execute()
+        
+    except Exception as e:
+        logging.error(f"Error giving referral bonus: {e}")
+        
+async def get_all_achievements(lang: str = "en") -> List[Dict]:
+    try:
+        res = supabase.table("achievements_list").select("*").execute()
+        return res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Error getting all achievements: {e}")
+        return []
 
 async def check_and_award_achievements(user_id: int, action: str, value: Any = None):
     """
