@@ -190,7 +190,7 @@ TEXTS = {
             "Hold on. I need to make sure this isn't a new record for stupidity."
         ],
         "fumble_result_high": [
-            "Your diagnosis — FAMBL at {score}%. You buy the top, sell the bottom, and panic in between. It's incurable. 🤡",
+            "Your diagnosis — BINTY at {score}%. You buy the top, sell the bottom, and panic in between. It's incurable. 🤡",
             "{score}% fumble. You're not a trader. You're liquidity. Accept it.",
             "Congratulations. Your best trade is the one you didn't make. This one? It's awful. 💀",
             "You didn't just buy the top. You bought the top, then bought higher, then sold the bottom. That's art. Ugly art.",
@@ -1872,7 +1872,7 @@ TEXTS = {
             "信号：全部提现到USDT。然后看着它涨。经典。",
             "我给你妈信号。她卖了。你买了。谁更聪明？都亏。",
             "买入。一分钟内-20%。然后-50%。然后你会开始喝酒。",
-            "来自FUMBL的信号：你已经输了。剩下的只是形式。🤡"
+            "来自BINTY的信号：你已经输了。剩下的只是形式。🤡"
         ],
         "signal_rare": [
             "我受够你了。真的。再按一次试试。💀",
@@ -2132,7 +2132,7 @@ TEXTS = {
             "📊 价格不可用。真的。我拿不到。你也拿不到。坐着等吧。",
             "💵 价格去度假了。没带你。也没带我。晚点再来。",
             "📉 看不到价格。也许代币还在妈妈的地下室里住着。长大了我给你看。",
-            "💰 错误：价格未找到。巧合？不。只是$FUMBL还没准备好让你痛苦。",
+            "💰 错误：价格未找到。巧合？不。只是$BINTY还没准备好让你痛苦。",
             "📊 价格在隐身。或者不存在。或者我瞎了。第三种可能 — 你命中注定不知道。",
             "💵 价格暂时不可用。就像你的利润。永久不可用。",
             "📉 不知道多少钱。代币要么在睡觉要么死了。我不是死灵法师。",
@@ -2184,7 +2184,7 @@ TEXTS = {
             "🔍 给我地址。我想用数字看你的痛苦。",
             "🔍 发送地址。抓紧了。诊断来了。",
             "🔍 地址。快点。我还有其他输家在等。",
-            "🔍 输入地址。我会计算你的FUMBL余额。然后我们一起笑。我 — 大声，你 — 忍着泪。",
+            "🔍 输入地址。我会计算你的BINTY余额。然后我们一起笑。我 — 大声，你 — 忍着泪。",
             "🔍 Solana地址。别弄错。我不原谅错误。好吧，我原谅。但我会笑。"
         ],
         "balance_response": [
@@ -2289,12 +2289,12 @@ TEXTS = {
             "🎨 给你。补偿你的交易壮举。开玩笑。什么也补偿不了。"
         ],
         "leaderboard_title": [
-            "🏆 **顶级FUMBL输家**\n\n",
-            "🏆 **顶级FUMBL输家**\n\n*谁亏得最多？看着笑吧。*\n\n",
+            "🏆 **顶级BINTY输家**\n\n",
+            "🏆 **顶级BINTY输家**\n\n*谁亏得最多？看着笑吧。*\n\n",
             "🏆 **耻辱堂**\n\n*这些人亏得最多。为他们骄傲？不。尊重？是。*\n\n",
-            "🏆 **FUMBL排行榜**\n\n*分数越高，交易员越差。向着反纪录前进！*\n\n",
+            "🏆 **BINTY排行榜**\n\n*分数越高，交易员越差。向着反纪录前进！*\n\n",
             "🏆 **今天谁是地板之王？**\n\n*最惨交易排名。鼓声...*\n\n",
-            "🏆 **FUMBL耻辱堂**\n\n*这里住着传奇。失败的传奇。*\n\n",
+            "🏆 **BINTY耻辱堂**\n\n*这里住着传奇。失败的传奇。*\n\n",
             "🏆 **史上顶级失误者**\n\n*他们的名字刻在石头上。耻辱石。*\n\n",
             "🏆 **谁亏得最多？**\n\n*由你的亏损赞助。*\n\n",
             "🏆 **痛苦之表**\n\n*每一行都是某个人的痛苦。某个人的失误。*\n\n",
