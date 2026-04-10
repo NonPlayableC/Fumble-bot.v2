@@ -264,26 +264,85 @@ async def get_last_swap_transaction(wallet: str) -> Optional[Dict[str, Any]]:
                     return tx
     return None
 
-def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str, Dict[str, Any]]:
+def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") -> Tuple[int, str, Dict[str, Any]]:
     """
     Парсит транзакцию из Helius и вычисляет фамбл-счёт.
     Возвращает: (score, reason, details)
     """
     details = {}
     
+    # Тексты причин на всех языках
+    REASONS = {
+        "en": {
+            "unknown_type": "Can't determine trade type, but it looks bad.",
+            "no_transfers": "Can't see what you bought or sold. But I'm sure you messed up.",
+            "unclear_direction": "Didn't understand what you bought and what you sold. But you definitely did something.",
+            "buy_big_loss": "Bought a token, it dropped {:.1f}%. Entry was ${:.6f}, now ${:.6f}. Loss ${:.2f}. Classic.",
+            "buy_medium_loss": "Bought and it dropped {:.1f}%. Entry ${:.6f} → now ${:.6f}. Down ${:.2f}.",
+            "buy_small_loss": "Small loss of {:.1f}%. Lost ${:.2f}. Warm-up.",
+            "buy_profit": "You're up {:.1f}%? Suspicious. Profit ${:.2f}. I'm disappointed.",
+            "sell_big_loss": "Sold at the bottom. Loss {:.1f}%. Got ${:.2f}. Could've been worse... actually no.",
+            "sell_medium_loss": "Sold at a loss of {:.1f}%. Got ${:.2f}. Not the best exit.",
+            "sell_small_loss": "Sold with small loss {:.1f}%. ${:.2f} in your pocket.",
+            "sell_profit": "Sold at a profit {:.1f}%? Lucky. Got ${:.2f}. But I'm watching.",
+            "parse_error": "Something broke during analysis. But I'm sure you lost."
+        },
+        "ru": {
+            "unknown_type": "Не могу определить тип сделки, но выглядит плохо.",
+            "no_transfers": "Не вижу, что ты купил или продал. Но уверен — что-то пошло не так.",
+            "unclear_direction": "Не понял, что ты купил, а что продал. Но ты точно что-то натворил.",
+            "buy_big_loss": "Купил токен, он упал на {:.1f}%. Вход был по ${:.6f}, сейчас ${:.6f}. Убыток ${:.2f}. Классика.",
+            "buy_medium_loss": "Купил, а оно упало на {:.1f}%. Вход ${:.6f} → сейчас ${:.6f}. Минус ${:.2f}.",
+            "buy_small_loss": "Небольшой минус {:.1f}%. Потерял ${:.2f}. Разминка.",
+            "buy_profit": "Ты в плюсе на {:.1f}%? Подозрительно. Прибыль ${:.2f}. Я разочарован.",
+            "sell_big_loss": "Продал на дне. Убыток {:.1f}%. Получил ${:.2f}. А мог бы...",
+            "sell_medium_loss": "Продал в минус {:.1f}%. Выручил ${:.2f}. Не лучший выход.",
+            "sell_small_loss": "Продал с небольшим убытком {:.1f}%. ${:.2f} в кармане.",
+            "sell_profit": "Продал в плюс {:.1f}%? Везение. Получил ${:.2f}. Но я слежу.",
+            "parse_error": "Что-то сломалось при анализе. Но я уверен — ты проиграл."
+        },
+        "es": {
+            "unknown_type": "No puedo determinar el tipo de operación, pero se ve mal.",
+            "no_transfers": "No veo qué compraste o vendiste. Pero seguro que la cagaste.",
+            "unclear_direction": "No entendí qué compraste y qué vendiste. Pero definitivamente hiciste algo.",
+            "buy_big_loss": "Compraste un token, cayó {:.1f}%. Entrada ${:.6f}, ahora ${:.6f}. Pérdida ${:.2f}. Clásico.",
+            "buy_medium_loss": "Compraste y cayó {:.1f}%. Entrada ${:.6f} → ahora ${:.6f}. Abajo ${:.2f}.",
+            "buy_small_loss": "Pequeña pérdida de {:.1f}%. Perdiste ${:.2f}. Calentamiento.",
+            "buy_profit": "¿Estás arriba {:.1f}%? Sospechoso. Ganancia ${:.2f}. Estoy decepcionado.",
+            "sell_big_loss": "Vendiste en el fondo. Pérdida {:.1f}%. Recibiste ${:.2f}. Podría ser peor... bueno no.",
+            "sell_medium_loss": "Vendiste con pérdida de {:.1f}%. Recibiste ${:.2f}. No es la mejor salida.",
+            "sell_small_loss": "Vendiste con pequeña pérdida {:.1f}%. ${:.2f} en tu bolsillo.",
+            "sell_profit": "¿Vendiste con ganancia {:.1f}%? Suerte. Recibiste ${:.2f}. Pero te vigilo.",
+            "parse_error": "Algo se rompió durante el análisis. Pero seguro que perdiste."
+        },
+        "zh": {
+            "unknown_type": "无法确定交易类型，但看起来很糟糕。",
+            "no_transfers": "看不到你买卖了什么。但我确定你搞砸了。",
+            "unclear_direction": "没搞懂你买了什么卖了什么。但你肯定做了什么。",
+            "buy_big_loss": "买入代币，跌了{:.1f}%。入场${:.6f}，现在${:.6f}。亏损${:.2f}。经典。",
+            "buy_medium_loss": "买入后跌了{:.1f}%。入场${:.6f} → 现在${:.6f}。亏${:.2f}。",
+            "buy_small_loss": "小额亏损{:.1f}%。亏了${:.2f}。热身而已。",
+            "buy_profit": "你盈利{:.1f}%？可疑。利润${:.2f}。我很失望。",
+            "sell_big_loss": "卖在底部。亏损{:.1f}%。得到${:.2f}。本来可以...算了。",
+            "sell_medium_loss": "亏损{:.1f}%卖出。拿到${:.2f}。不是最好的退出。",
+            "sell_small_loss": "小额亏损{:.1f}%卖出。${:.2f}进口袋。",
+            "sell_profit": "盈利{:.1f}%卖出？走运。拿到${:.2f}。但我在看着。",
+            "parse_error": "分析时出错了。但我确定你亏了。"
+        }
+    }
+    
+    r = REASONS.get(lang, REASONS["en"])
+    
     try:
-        # Определяем тип транзакции (SWAP)
         if tx.get("type") != "SWAP":
-            return random.randint(5, 8), "Не могу определить тип сделки, но выглядит плохо.", {}
+            return random.randint(5, 8), r["unknown_type"], {}
         
-        # Извлекаем информацию о переводах токенов
         token_transfers = tx.get("tokenTransfers", [])
         if not token_transfers:
-            return random.randint(5, 8), "Не вижу, что ты купил или продал. Но уверен — что-то пошло не так.", {}
+            return random.randint(5, 8), r["no_transfers"], {}
         
-        # Определяем, что купили и что продали
-        sent = None  # что отправил пользователь
-        received = None  # что получил пользователь
+        sent = None
+        received = None
         
         for transfer in token_transfers:
             from_user = transfer.get("fromUserAccount", "")
@@ -297,16 +356,13 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str,
                 received = {"mint": mint, "amount": amount}
         
         if not sent or not received:
-            return random.randint(5, 8), "Не понял, что ты купил, а что продал. Но ты точно что-то натворил.", {}
+            return random.randint(5, 8), r["unclear_direction"], {}
         
-        # Определяем направление сделки
-        # Если отправил SOL или USDC — это покупка
         SOL_MINT = "So11111111111111111111111111111111111111112"
         USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         
         is_buy = sent["mint"] in [SOL_MINT, USDC_MINT]
         
-        # Получаем цены через DexScreener
         import asyncio
         
         async def get_token_price(mint: str) -> float:
@@ -326,22 +382,18 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str,
         asyncio.set_event_loop(loop)
         
         if is_buy:
-            # Купил токен за SOL/USDC
             bought_mint = received["mint"]
             bought_amount = received["amount"]
             spent_amount = sent["amount"]
             spent_mint = sent["mint"]
             
-            # Текущая цена купленного токена
             current_price = loop.run_until_complete(get_token_price(bought_mint))
             
-            # Цена покупки (сколько потратил USD / сколько получил токенов)
             spent_price = loop.run_until_complete(get_token_price(spent_mint)) if spent_mint != SOL_MINT else 0
             if spent_mint == SOL_MINT:
-                # SOL цена через DexScreener
                 spent_price = loop.run_until_complete(get_token_price(SOL_MINT))
             
-            spent_usd = spent_amount * spent_price if spent_price > 0 else spent_amount * 20  # fallback
+            spent_usd = spent_amount * spent_price if spent_price > 0 else spent_amount * 20
             
             entry_price = spent_usd / bought_amount if bought_amount > 0 else 0
             current_value = bought_amount * current_price
@@ -360,28 +412,25 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str,
                 "pnl_percent": pnl_percent
             }
             
-            # Формируем причину
             if pnl_percent <= -30:
                 score = random.randint(9, 10)
-                reason = f"Купил токен, он упал на {abs(pnl_percent):.1f}%. Вход был по ${entry_price:.6f}, сейчас ${current_price:.6f}. Убыток ${abs(pnl_usd):.2f}. Классика."
+                reason = r["buy_big_loss"].format(abs(pnl_percent), entry_price, current_price, abs(pnl_usd))
             elif pnl_percent <= -15:
                 score = random.randint(7, 8)
-                reason = f"Купил, а оно упало на {abs(pnl_percent):.1f}%. Вход ${entry_price:.6f} → сейчас ${current_price:.6f}. Минус ${abs(pnl_usd):.2f}."
+                reason = r["buy_medium_loss"].format(abs(pnl_percent), entry_price, current_price, abs(pnl_usd))
             elif pnl_percent < 0:
                 score = random.randint(5, 6)
-                reason = f"Небольшой минус {abs(pnl_percent):.1f}%. Потерял ${abs(pnl_usd):.2f}. Разминка."
+                reason = r["buy_small_loss"].format(abs(pnl_percent), abs(pnl_usd))
             else:
                 score = random.randint(0, 2)
-                reason = f"Ты в плюсе на {pnl_percent:.1f}%? Подозрительно. Прибыль ${pnl_usd:.2f}. Я разочарован."
+                reason = r["buy_profit"].format(pnl_percent, pnl_usd)
                 
         else:
-            # Продал токен
             sold_mint = sent["mint"]
             sold_amount = sent["amount"]
             received_mint = received["mint"]
             received_amount = received["amount"]
             
-            # Цена продажи
             received_price = loop.run_until_complete(get_token_price(received_mint)) if received_mint != SOL_MINT else 0
             if received_mint == SOL_MINT:
                 received_price = loop.run_until_complete(get_token_price(SOL_MINT))
@@ -390,12 +439,8 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str,
                 
             received_usd = received_amount * received_price if received_price > 0 else received_amount
             
-            # Текущая цена проданного токена (чтобы посмотреть, что стало)
             current_price = loop.run_until_complete(get_token_price(sold_mint))
-            
-            # Условная цена покупки (не можем знать точно без истории)
-            # Используем текущую цену как ориентир
-            estimated_entry = current_price * random.uniform(0.7, 1.5)  # допущение
+            estimated_entry = current_price * random.uniform(0.7, 1.5)
             
             pnl_percent = ((received_usd / sold_amount) - estimated_entry) / estimated_entry * 100 if estimated_entry > 0 else 0
             pnl_usd = received_usd - (sold_amount * estimated_entry)
@@ -412,27 +457,24 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str) -> Tuple[int, str,
             
             if pnl_percent <= -30:
                 score = random.randint(9, 10)
-                reason = f"Продал на дне. Убыток {abs(pnl_percent):.1f}%. Получил ${received_usd:.2f}. А мог бы..."
+                reason = r["sell_big_loss"].format(abs(pnl_percent), received_usd)
             elif pnl_percent <= -15:
                 score = random.randint(7, 8)
-                reason = f"Продал в минус {abs(pnl_percent):.1f}%. Выручил ${received_usd:.2f}. Не лучший выход."
+                reason = r["sell_medium_loss"].format(abs(pnl_percent), received_usd)
             elif pnl_percent < 0:
                 score = random.randint(5, 6)
-                reason = f"Продал с небольшим убытком {abs(pnl_percent):.1f}%. ${received_usd:.2f} в кармане."
+                reason = r["sell_small_loss"].format(abs(pnl_percent), received_usd)
             else:
                 score = random.randint(0, 2)
-                reason = f"Продал в плюс {pnl_percent:.1f}%? Везение. Получил ${received_usd:.2f}. Но я слежу."
+                reason = r["sell_profit"].format(pnl_percent, received_usd)
         
         loop.close()
-        
-        # Добавляем случайную вариацию ±1
         score = max(0, min(10, score + random.randint(-1, 1)))
-        
         return score, reason, details
         
     except Exception as e:
         logging.error(f"Error parsing transaction: {e}")
-        return random.randint(5, 8), "Что-то сломалось при анализе. Но я уверен — ты проиграл.", {}
+        return random.randint(5, 8), r["parse_error"], {}
 
 def generate_portfolio_chart_real(history, current_amount, current_value):
     # ... (оставляем как было, только подпись "BINTY Portfolio")
@@ -743,7 +785,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
-            score, reason, tx_details = calculate_fumble_from_tx(tx, wallet)
+            score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
             await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
             stats = await get_user_stats(user_id)
             result_text = get_text(lang, "fumble_smart_result", score, reason)
