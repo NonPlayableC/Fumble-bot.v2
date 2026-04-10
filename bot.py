@@ -865,6 +865,9 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(chat_id=user_id, text=TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     score = random.randint(0, 10)
+    bonus = await check_signal_fumble_bonus(user_id)
+    if bonus:
+        score = min(10, score + bonus)
     await save_fumble(user_id, score, type='manual')
     await update_quest_progress(user_id, 'fumble_count', 1)
     stats = await get_user_stats(user_id)
@@ -1012,6 +1015,7 @@ async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_T
             await check_and_award_achievements(user_id, 'wallet')
             roast = await get_portfolio_roast(address, lang)
             text = get_text(lang, "balance_response", address, amount, value)
+            text += f"\n\n*{roast}*"
             final_text = add_hooks(lang, text)
             await update.message.reply_text(final_text, parse_mode=ParseMode.MARKDOWN)
 
