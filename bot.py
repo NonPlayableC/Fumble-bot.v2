@@ -1205,17 +1205,81 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update_menu(chat_id, user_id, context, lang)
     
 async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает активные квесты и позволяет забрать награду"""
     query = update.callback_query
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
-    text = get_text(lang, "quests_text")
+    
+    # Генерируем ежедневные квесты если их нет
+    await generate_daily_quests_for_user(user_id)
+    
+    # Получаем активные квесты
+    active_quests = await get_user_active_quests(user_id)
+    completed_quests = await get_user_completed_quests(user_id, limit=3)
+    
+    text = f"🎯 **{TEXTS[lang].get('quests_title', 'QUESTS')}**\n\n"
+    
+    if active_quests:
+        text += "*Active Quests:*\n"
+        for uq in active_quests:
+            quest = uq.get("quests", {})
+            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
+            progress = uq["progress"]
+            target = quest["condition_value"]
+            progress_bar = "▓" * (progress * 10 // target) + "░" * (10 - (progress * 10 // target))
+            text += f"\n📌 {name}\n{progress_bar} {progress}/{target}\n"
+            if uq["completed"]:
+                text += "✅ *COMPLETED!* Use button below to claim.\n"
+    else:
+        text += "*No active quests. Come back tomorrow!*\n"
+    
+    if completed_quests:
+        text += "\n*Recently Completed:*\n"
+        for uq in completed_quests:
+            quest = uq.get("quests", {})
+            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
+            claimed = "✅" if uq["reward_claimed"] else "⏳"
+            text += f"{claimed} {name}\n"
+    
+    # Создаём кнопки для клейма наград
+    keyboard = []
+    for uq in active_quests:
+        if uq["completed"] and not uq["reward_claimed"]:
+            quest = uq.get("quests", {})
+            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:20]
+            keyboard.append([InlineKeyboardButton(f"🎁 Claim: {name}", callback_data=f"claim_quest_{uq['id']}")])
+    
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
+    
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-        ])
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
     )
+
+
+async def claim_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает клейм награды квеста"""
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    data = query.data
+    
+    quest_id = int(data.replace("claim_quest_", ""))
+    
+    result = await claim_quest_reward(user_id, quest_id)
+    
+    if result["success"]:
+        text = f"✅ **Reward claimed!**\n\n+{result['reward_points']} fumble points"
+        if result['reward_binty'] > 0:
+            text += f"\n+{result['reward_binty']} $BINTY"
+        await query.answer(text, show_alert=True)
+    else:
+        await query.answer(f"❌ {result['error']}", show_alert=True)
+    
+    # Обновляем меню квестов
+    await quests(update, context)
 
 
 async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
