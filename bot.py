@@ -791,19 +791,28 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
-    # Обновляем стрик
+    
     await update_streak(user_id)
     await update_quest_progress(user_id, 'signal_count', 1)
     
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    # Отправляем первое сообщение "Думаю..."
     pause_text = get_text(lang, "signal_pause")
+    pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
+    
+    await asyncio.sleep(2)
+    
+    # Получаем сигнал
     signal_text = get_text(lang, "signal")
     final_signal = add_hooks(lang, signal_text)
-    await send_with_pause(chat_id, user_id, pause_text, final_signal, context)
-    # Сохраняем историю сигналов
+    
+    # Заменяем сообщение "Думаю..." на сигнал
+    await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
+    
+    # Сохраняем историю
     await save_signal_history(user_id, signal_text)
     await check_and_award_achievements(user_id, 'signal')
 
@@ -1447,20 +1456,31 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
+    
     stats = await get_user_stats(user_id)
     streak_info = await get_streak_info(user_id)
     position = await get_user_position(user_id)
+    
     level = get_level(stats["average"]) if stats else 1
     level_name = get_level_name(level, lang)
-    text = get_text(lang, "my_stats",
-                    level=level, level_name=level_name,
-                    total_fumbles=stats["count"] if stats else 0,
-                    avg_score=stats["average"] if stats else 0,
-                    total_signals=stats.get("signal_clicks", 0) if stats else 0,
-                    streak=streak_info["current_streak"],
-                    referrals=await get_referrals_count(user_id),
-                    position=position)
-    await query.edit_message_text(text, reply_markup=get_my_stats_menu(lang), parse_mode=ParseMode.MARKDOWN)
+    
+    text = get_text(
+        lang, "my_stats",
+        level=level,
+        level_name=level_name,
+        total_fumbles=stats["count"] if stats else 0,
+        avg_score=stats["average"] if stats else 0,
+        total_signals=stats.get("signal_clicks", 0) if stats else 0,
+        streak=streak_info["current_streak"],
+        referrals=await get_referrals_count(user_id),
+        position=position
+    )
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=get_my_stats_menu(lang),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
