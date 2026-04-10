@@ -83,8 +83,15 @@ def get_button_text(lang: str, key: str) -> str:
     return TEXTS[lang]["buttons"].get(key, key)
 
 # ==================== МЕНЮ (BINTY) ====================
-def get_main_menu(lang: str) -> InlineKeyboardMarkup:
+async def get_main_menu(user_id: int, lang: str) -> InlineKeyboardMarkup:
+    """Генерирует главное меню с актуальным статусом подписки"""
     t = TEXTS[lang]["buttons"]
+    
+    # Проверяем статус подписки
+    is_sub = await is_subscribed(user_id)
+    subscribe_text = t["unsubscribe"] if is_sub else t["subscribe"]
+    subscribe_callback = "unsubscribe" if is_sub else "subscribe"
+    
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["signal"], callback_data="signal"),
          InlineKeyboardButton(t["fumble"], callback_data="fumble")],
@@ -92,14 +99,12 @@ def get_main_menu(lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(t["price"], callback_data="price")],
         [InlineKeyboardButton(t["holders"], callback_data="holders"),
          InlineKeyboardButton(t["balance"], callback_data="balance")],
-        [InlineKeyboardButton(t["meme"], callback_data="meme"),
-         InlineKeyboardButton(t["sticker"], callback_data="sticker")],
         [InlineKeyboardButton(t["leaderboard"], callback_data="leaderboard"),
          InlineKeyboardButton(t["language"], callback_data="language")],
-        [InlineKeyboardButton(t["subscribe"], callback_data="subscribe"),
-         InlineKeyboardButton(t["unsubscribe"], callback_data="unsubscribe")],
-        [InlineKeyboardButton(t["game_center"], callback_data="game_center"),
-         InlineKeyboardButton(t["my_stats"], callback_data="my_stats")],
+        [InlineKeyboardButton(subscribe_text, callback_data=subscribe_callback),
+         InlineKeyboardButton(t["game_center"], callback_data="game_center")],
+        [InlineKeyboardButton(t["my_stats"], callback_data="my_stats"),
+         InlineKeyboardButton(t["meme"], callback_data="meme")],
         [InlineKeyboardButton(t["buy"], url=f"https://pump.fun/coin/{TOKEN_ADDRESS}"),
          InlineKeyboardButton(t["site"], url=SITE_URL),
          InlineKeyboardButton(t["chat"], url=CHAT_URL),
@@ -711,17 +716,21 @@ async def send_with_pause(chat_id: int, user_id: int, first_text: str,
     await delete_previous_and_send(chat_id, user_id, final_text, context)
 
 async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE, lang: str = None):
+    """Обновляет главное меню с актуальным статусом подписки"""
     global menu_message_ids
     if lang is None:
         lang = await get_language(user_id)
+    
     menu_text = TEXTS[lang].get("menu_title", "📋 BINTY Menu")
+    menu_markup = await get_main_menu(user_id, lang)
+    
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=menu_message_ids[user_id],
                 text=menu_text,
-                reply_markup=get_main_menu(lang),
+                reply_markup=menu_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
         except Exception as e:
@@ -729,7 +738,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
             msg = await context.bot.send_message(
                 chat_id=chat_id,
                 text=menu_text,
-                reply_markup=get_main_menu(lang),
+                reply_markup=menu_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
             menu_message_ids[user_id] = msg.message_id
@@ -737,7 +746,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=menu_text,
-            reply_markup=get_main_menu(lang),
+            reply_markup=menu_markup,
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
@@ -780,7 +789,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     msg = await update.message.reply_text(
         TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
-        reply_markup=get_main_menu(lang),
+        reply_markup=await get_main_menu(user_id, lang),
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
@@ -1133,6 +1142,7 @@ async def lb_prev(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await leaderboard(update, context)
     
 async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает подтверждение подписки"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -1154,6 +1164,7 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def confirm_subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Подтверждает подписку и обновляет меню"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -1162,9 +1173,12 @@ async def confirm_subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = get_text(lang, "subscribe")
     final_text = add_hooks(lang, text)
     await delete_previous_and_send(chat_id, user_id, final_text, context)
+    # Обновляем меню, чтобы кнопка сменилась на UNSUBSCRIBE
+    await update_menu(chat_id, user_id, context, lang)
 
 
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает подтверждение отписки"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -1186,6 +1200,7 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def confirm_unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Подтверждает отписку и обновляет меню"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -1194,7 +1209,8 @@ async def confirm_unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = get_text(lang, "unsubscribe")
     final_text = add_hooks(lang, text)
     await delete_previous_and_send(chat_id, user_id, final_text, context)
-
+    # Обновляем меню, чтобы кнопка сменилась на SUBSCRIBE
+    await update_menu(chat_id, user_id, context, lang)
 
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
