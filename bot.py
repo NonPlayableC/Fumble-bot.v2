@@ -1600,6 +1600,10 @@ def main():
     
     logging.info("🚀 BINTY Agent starting with polling...")
     app.run_polling()
+    logging.info("🚀 BINTY Agent starting with polling...")
+    print("🚀 Bot is starting...")
+    app.run_polling()
+    print("❌ Bot stopped!")  # Это не должно появиться если бот работает
 
 if __name__ == "__main__":
     main()
