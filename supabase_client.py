@@ -508,6 +508,158 @@ async def log_certificate_request(user_id: int) -> bool:
 # Импортируем в конец файла, чтобы избежать циклических импортов
 from texts import get_text
 
+# ==================== КВЕСТЫ (ПОЛНАЯ СИСТЕМА) ====================
+
+async def generate_daily_quests_for_user(user_id: int) -> List[Dict]:
+    """Генерирует ежедневные квесты для пользователя"""
+    try:
+        # Получаем все активные квесты с duration_hours <= 24 (ежедневные)
+        res = supabase.table("quests").select("*").eq("is_active", True).lte("duration_hours", 24).execute()
+        quests = res.data
+        
+        assigned_quests = []
+        now = datetime.now()
+        
+        for quest in quests:
+            # Проверяем, не назначен ли уже такой квест сегодня
+            existing = supabase.table("user_quests").select("id").eq("user_id", user_id).eq("quest_id", quest["id"]).gte("assigned_at", now.date().isoformat()).execute()
+            
+            if not existing.data:
+                # Назначаем квест
+                expires_at = now + timedelta(hours=quest["duration_hours"])
+                data = {
+                    "user_id": user_id,
+                    "quest_id": quest["id"],
+                    "assigned_at": now.isoformat(),
+                    "expires_at": expires_at.isoformat(),
+                    "progress": 0,
+                    "completed": False,
+                    "reward_claimed": False
+                }
+                supabase.table("user_quests").insert(data).execute()
+                assigned_quests.append(quest)
+        
+        return assigned_quests
+    except Exception as e:
+        logging.error(f"Error generating quests for {user_id}: {e}")
+        return []
+
+
+async def update_quest_progress(user_id: int, condition_type: str, increment: int = 1):
+    """Обновляет прогресс всех активных квестов пользователя по типу условия"""
+    try:
+        now = datetime.now().isoformat()
+        
+        # Получаем активные квесты пользователя с данным типом условия
+        res = supabase.table("user_quests").select("*, quests(*)").eq("user_id", user_id).eq("completed", False).lte("assigned_at", now).gte("expires_at", now).execute()
+        
+        if not res.data:
+            return
+        
+        for user_quest in res.data:
+            quest = user_quest.get("quests", {})
+            if quest.get("condition_type") == condition_type:
+                new_progress = user_quest["progress"] + increment
+                completed = new_progress >= quest["condition_value"]
+                
+                update_data = {"progress": new_progress}
+                if completed:
+                    update_data["completed"] = True
+                    update_data["completed_at"] = now
+                
+                supabase.table("user_quests").update(update_data).eq("id", user_quest["id"]).execute()
+                
+                # Если квест выполнен, отправляем уведомление
+                if completed:
+                    await notify_quest_completed(user_id, quest)
+                    
+    except Exception as e:
+        logging.error(f"Error updating quest progress for {user_id}: {e}")
+
+
+async def claim_quest_reward(user_id: int, user_quest_id: int) -> Dict:
+    """Забирает награду за выполненный квест"""
+    try:
+        # Получаем квест
+        res = supabase.table("user_quests").select("*, quests(*)").eq("id", user_quest_id).eq("user_id", user_id).single().execute()
+        
+        if not res.data:
+            return {"success": False, "error": "Quest not found"}
+        
+        user_quest = res.data
+        if not user_quest["completed"]:
+            return {"success": False, "error": "Quest not completed"}
+        if user_quest["reward_claimed"]:
+            return {"success": False, "error": "Reward already claimed"}
+        
+        quest = user_quest.get("quests", {})
+        reward_points = quest.get("reward_points", 0)
+        reward_binty = quest.get("reward_binty", 0)
+        
+        # Начисляем баллы
+        if reward_points > 0:
+            supabase.table("user_stats").update({
+                "total_score": supabase.rpc('increment_score', {'p_user_id': user_id, 'p_amount': reward_points})
+            }).eq("user_id", user_id).execute()
+        
+        # Начисляем BINTY
+        if reward_binty > 0:
+            supabase.table("user_balances").upsert({
+                "user_id": user_id,
+                "amount": supabase.rpc('increment_balance', {'p_user_id': user_id, 'p_amount': reward_binty})
+            }).execute()
+        
+        # Отмечаем награду как полученную
+        supabase.table("user_quests").update({"reward_claimed": True}).eq("id", user_quest_id).execute()
+        
+        return {
+            "success": True,
+            "reward_points": reward_points,
+            "reward_binty": reward_binty,
+            "quest_name": quest.get("name_en", "Quest")
+        }
+        
+    except Exception as e:
+        logging.error(f"Error claiming quest reward: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def get_user_active_quests(user_id: int) -> List[Dict]:
+    """Возвращает активные квесты пользователя"""
+    try:
+        now = datetime.now().isoformat()
+        res = supabase.table("user_quests").select("*, quests(*)").eq("user_id", user_id).eq("completed", False).lte("assigned_at", now).gte("expires_at", now).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Error getting active quests: {e}")
+        return []
+
+
+async def get_user_completed_quests(user_id: int, limit: int = 5) -> List[Dict]:
+    """Возвращает выполненные квесты пользователя"""
+    try:
+        res = supabase.table("user_quests").select("*, quests(*)").eq("user_id", user_id).eq("completed", True).order("completed_at", desc=True).limit(limit).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Error getting completed quests: {e}")
+        return []
+
+
+async def notify_quest_completed(user_id: int, quest: Dict):
+    """Отправляет уведомление о выполнении квеста"""
+    try:
+        lang = await get_language(user_id)
+        name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
+        
+        import telegram
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if bot_token:
+            bot = telegram.Bot(token=bot_token)
+            text = f"🎯 **Quest completed!**\n\n{name}\n\nClaim your reward in Game Center → Quests!"
+            await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+    except Exception as e:
+        logging.error(f"Error notifying quest completion: {e}")
+
 async def check_and_award_achievements(user_id: int, action: str, value: Any = None):
     """
     Проверяет и выдаёт ачивки пользователю.
