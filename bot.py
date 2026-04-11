@@ -1769,14 +1769,14 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Формируем текст
         text = get_text(
             lang, "my_stats",
-            level=level,
-            level_name=level_name,
-            total_fumbles=total_fumbles,
-            avg_score=avg_score,
-            total_signals=signal_clicks,
-            streak=streak_info.get("current_streak", 0) if streak_info else 0,
-            referrals=await get_referrals_count(user_id),
-            position=position
+            level,                  # {0}
+            level_name,             # {1}
+            total_fumbles,          # {2}
+            avg_score,              # {3}
+            signal_clicks,          # {4}
+            streak_info.get("current_streak", 0) if streak_info else 0,  # {5}
+            await get_referrals_count(user_id),  # {6}
+            position                # {7}
         )
         
         keyboard = get_my_stats_menu(lang)
