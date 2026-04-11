@@ -593,7 +593,13 @@ TEXTS = {
         "signal_history_text": "📡 **Your last 10 signals:**\n{}",
         "fumble_history_text": "🧾 **Your last 10 fumbles:**\n{}",
         "no_history": "No history yet. Press some buttons!",
-
+        "active_day": "Active",
+        "inactive_day": "Inactive",
+        "today_active": "Today (active)",
+        "today_inactive": "Today (inactive)",
+        "current_streak": "Current streak",
+        "longest_streak": "Longest streak",
+        
   },
     "ru": {
         "buttons": {
@@ -1189,7 +1195,13 @@ TEXTS = {
         "signal_history_text": "📡 **Твои последние 10 сигналов:**\n{}",
         "fumble_history_text": "🧾 **Твои последние 10 фамблов:**\n{}",
         "no_history": "Истории пока нет. Нажимай кнопки!",
-                
+        "active_day": "Активен",
+        "inactive_day": "Пропущен",
+        "today_active": "Сегодня (активен)",
+        "today_inactive": "Сегодня (пропущен)",
+        "current_streak": "Текущая серия",
+        "longest_streak": "Рекорд",
+                        
     },
     "es": {
         "buttons": {
@@ -1784,6 +1796,12 @@ TEXTS = {
         "signal_history_text": "📡 **Tus últimas 10 señales:**\n{}",
         "fumble_history_text": "🧾 **Tus últimos 10 fumbles:**\n{}",
         "no_history": "Aún no hay historial. ¡Presiona algunos botones!",
+        "active_day": "Activo",
+        "inactive_day": "Inactivo",
+        "today_active": "Hoy (activo)",
+        "today_inactive": "Hoy (inactivo)",
+        "current_streak": "Racha actual",
+        "longest_streak": "Racha más larga",
         
     },
     "zh": {
@@ -2380,6 +2398,12 @@ TEXTS = {
         "signal_history_text": "📡 **你最近10条信号:**\n{}",
         "fumble_history_text": "🧾 **你最近10次失误:**\n{}",
         "no_history": "暂无历史记录。按点按钮吧！",
+        "active_day": "活跃",
+        "inactive_day": "未活跃",
+        "today_active": "今天 (活跃)",
+        "today_inactive": "今天 (未活跃)",
+        "current_streak": "当前连续",
+        "longest_streak": "最长连续",
         
     }
 }
