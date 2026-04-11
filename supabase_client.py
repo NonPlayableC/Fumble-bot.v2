@@ -814,7 +814,19 @@ async def notify_quest_completed(user_id: int, quest: Dict):
             await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
     except Exception as e:
         logging.error(f"Error notifying quest completion: {e}")
-        
+    
+# ==================== ВОПРОСЫ ДЛЯ РУЧНОГО ФАМБЛА ====================
+
+async def fetch_fumble_questions() -> List[Dict]:
+    """Загружает все активные вопросы с вариантами из БД"""
+    try:
+        questions = supabase.table("fumble_questions").select("*").eq("is_active", True).execute().data
+        for q in questions:
+            q["options"] = supabase.table("fumble_options").select("*").eq("question_id", q["id"]).order("sort_order").execute().data
+        return questions
+    except Exception as e:
+        logging.error(f"Failed to fetch fumble questions: {e}")
+        return []
 
 async def check_and_award_achievements(user_id: int, action: str, value: Any = None):
     """
