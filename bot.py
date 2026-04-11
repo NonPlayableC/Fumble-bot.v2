@@ -45,7 +45,8 @@ from supabase_client import (
     get_portfolio_roast,
     send_signal_of_the_day,
     send_auto_signals,
-    get_all_achievements
+    get_all_achievements,
+    check_signal_fumble_bonus
 )
     
 from texts import TEXTS, get_text, add_hooks
@@ -582,45 +583,48 @@ def generate_portfolio_chart_fake():
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
-    width, height = 800, 500
-    img = Image.new('RGB', (width, height), color='#1a1a1a')
+    width, height = 600, 400
+    img = Image.new('RGB', (width, height), color='#1a1a2e')
     draw = ImageDraw.Draw(img)
+    
     # Рамка
-    draw.rectangle([20, 20, width-20, height-20], outline='#ff4444', width=5)
+    draw.rectangle([15, 15, width-15, height-15], outline='#e94560', width=4)
+    
     try:
-        font_title = ImageFont.truetype("arial.ttf", 36)
-        font_text = ImageFont.truetype("arial.ttf", 24)
-        font_small = ImageFont.truetype("arial.ttf", 18)
+        font_title = ImageFont.truetype("arial.ttf", 32)
+        font_text = ImageFont.truetype("arial.ttf", 22)
     except:
         font_title = ImageFont.load_default()
         font_text = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+    
     # Заголовок
-    title = TEXTS[lang].get("certificate_title", "CERTIFICATE OF SHAME")
-    draw.text((width//2, 60), title, fill='#ff4444', font=font_title, anchor='mm')
+    draw.text((width//2, 40), "CERTIFICATE OF SHAME", fill='#e94560', font=font_title, anchor='mm')
+    draw.text((width//2, 75), "BINTY", fill='#ffffff', font=font_text, anchor='mm')
+    
     # Имя
-    draw.text((width//2, 130), username or f"User {user_id}", fill='white', font=font_text, anchor='mm')
+    draw.text((width//2, 130), username or f"User {user_id}", fill='#ffffff', font=font_text, anchor='mm')
+    
     # Статистика
-    y = 200
+    y = 180
     lines = [
-        f"{TEXTS[lang].get('level', 'Level')}: {level_name}",
-        f"{TEXTS[lang].get('total_fumbles', 'Total Fumbles')}: {total_fumbles}",
-        f"{TEXTS[lang].get('avg_score', 'Avg Score')}: {avg_score:.1f}",
-        f"{TEXTS[lang].get('leaderboard_position', 'Leaderboard Position')}: #{position}",
-        f"{TEXTS[lang].get('date', 'Date')}: {datetime.now().strftime('%Y-%m-%d')}"
+        f"Level: {level_name}",
+        f"Total Fumbles: {total_fumbles}",
+        f"Avg Score: {avg_score:.1f}",
+        f"Position: #{position}",
+        f"Date: {datetime.now().strftime('%Y-%m-%d')}"
     ]
     for line in lines:
-        draw.text((width//2, y), line, fill='white', font=font_text, anchor='mm')
-        y += 40
-    # QR-код
-    qr = qrcode.QRCode(box_size=4, border=2)
-    qr.add_data(f"https://t.me/BintyBot?start=ref_{user_id}")
+        draw.text((width//2, y), line, fill='#cccccc', font=font_text, anchor='mm')
+        y += 30
+    
+    # QR
+    qr = qrcode.QRCode(box_size=3, border=1)
+    qr.add_data(f"https://t.me/BintyAgentBot?start=ref_{user_id}")
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    qr_img = qr_img.resize((120, 120))
-    img.paste(qr_img, (width-160, height-160))
-    # Подпись
-    draw.text((width//2, height-50), "BINTY — Financial Enemy #1", fill='#888888', font=font_small, anchor='mm')
+    qr_img = qr_img.resize((90, 90))
+    img.paste(qr_img, (width-120, height-120))
+    
     img_bytes = BytesIO()
     img.save(img_bytes, format='PNG')
     img_bytes.seek(0)
@@ -993,14 +997,17 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
-        return
+    cancel_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
+    ])
     
-    cancel_kb = InlineKeyboardMarkup([[InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]])
-    await query.message.reply_text(get_text(lang, "balance_prompt"), reply_markup=cancel_kb)
+    await delete_previous_and_send(
+        chat_id, user_id,
+        get_text(lang, "balance_prompt"),
+        context,
+        reply_markup=cancel_kb
+    )
     context.user_data['awaiting_balance'] = True
-
 
 async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1258,56 +1265,47 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update_menu(chat_id, user_id, context, lang)
     
 async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает активные квесты и позволяет забрать награду"""
     query = update.callback_query
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
     
-    # Генерируем ежедневные квесты если их нет
     await generate_daily_quests_for_user(user_id)
-    
-    # Получаем активные квесты
     active_quests = await get_user_active_quests(user_id)
-    completed_quests = await get_user_completed_quests(user_id, limit=3)
     
-    text = f"🎯 **{TEXTS[lang].get('quests_title', 'QUESTS')}**\n\n"
+    text = f"🎯 **КВЕСТЫ**\n\n"
     
     if active_quests:
-        text += "*Active Quests:*\n"
         for uq in active_quests:
             quest = uq.get("quests", {})
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
             progress = uq["progress"]
             target = quest["condition_value"]
-            progress_bar = "▓" * (progress * 10 // target) + "░" * (10 - (progress * 10 // target))
-            text += f"\n📌 {name}\n{progress_bar} {progress}/{target}\n"
-            if uq["completed"]:
-                text += "✅ *COMPLETED!* Use button below to claim.\n"
+            
+            # Квадраты прогресса
+            filled = "🟩" * progress
+            empty = "⬛" * (target - progress)
+            bar = filled + empty
+            
+            text += f"▫️ {name}\n{bar} {progress}/{target}\n\n"
     else:
-        text += "*No active quests. Come back tomorrow!*\n"
+        text += "▫️ Нет активных квестов\n"
     
-    if completed_quests:
-        text += "\n*Recently Completed:*\n"
-        for uq in completed_quests:
-            quest = uq.get("quests", {})
-            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
-            claimed = "✅" if uq["reward_claimed"] else "⏳"
-            text += f"{claimed} {name}\n"
-    
-    # Создаём кнопки для клейма наград
     keyboard = []
     for uq in active_quests:
         if uq["completed"] and not uq["reward_claimed"]:
             quest = uq.get("quests", {})
-            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:20]
-            keyboard.append([InlineKeyboardButton(f"🎁 Claim: {name}", callback_data=f"claim_quest_{uq['id']}")])
+            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
+            keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
+    keyboard = [
+    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+]
     
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1340,13 +1338,22 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
+    
     count = await get_referrals_count(user_id)
-    text = get_text(lang, "referral_info", user_id, count)
+    link = f"https://t.me/BintyAgentBot?start=ref_{user_id}"
+    
+    text = f"👥 **РЕФЕРАЛЫ**\n\n"
+    text += f"▫️ Приглашено: **{count}**\n"
+    text += f"▫️ Твоя ссылка:\n`{link}`\n\n"
+    text += f"▫️ Приглашай друзей и получай $BINTY за их фамблы!\n"
+    
+    keyboard = [
+    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+]    
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-        ]),
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1399,55 +1406,30 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает список всех ачивок и прогресс"""
     query = update.callback_query
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
     
-    # Получаем полученные ачивки
     earned = await get_user_achievements(user_id)
     earned_keys = set([a["achievement_key"] for a in earned]) if earned else set()
     
-    # Получаем все ачивки
     all_achievements = await get_all_achievements(lang)
     
-    # Статистика
-    total_earned = len(earned_keys)
-    total_all = len(all_achievements)
-    
     text = f"🏅 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
-    text += f"📊 Progress: {total_earned}/{total_all}\n\n"
+    text += f"▫️ Получено: {len(earned_keys)}/{len(all_achievements)}\n\n"
     
-    # Группируем по категориям
-    categories = {
-        "fumble": {"icon": "🤡", "name": {"en": "Fumbles", "ru": "Фамблы", "es": "Fumbles", "zh": "失误"}},
-        "signal": {"icon": "📡", "name": {"en": "Signals", "ru": "Сигналы", "es": "Señales", "zh": "信号"}},
-        "streak": {"icon": "🔥", "name": {"en": "Streaks", "ru": "Серии", "es": "Rachas", "zh": "连续"}},
-        "wallet": {"icon": "🔗", "name": {"en": "Wallet", "ru": "Кошелёк", "es": "Cartera", "zh": "钱包"}},
-        "social": {"icon": "🤝", "name": {"en": "Social", "ru": "Соцсети", "es": "Social", "zh": "社交"}},
-        "special": {"icon": "🎭", "name": {"en": "Special", "ru": "Особые", "es": "Especial", "zh": "特殊"}}
-    }
-    
-    # Распределяем ачивки по категориям
-    cat_achievements = {cat: [] for cat in categories}
-    
-    for ach in all_achievements:
+    for ach in all_achievements[:10]:
         key = ach["achievement_key"]
-        earned = "✅" if key in earned_keys else "❌"
+        icon = ach.get("icon", "🏅")
         name = ach.get(f"name_{lang}", ach.get("name_en", key))
-        cat_achievements[get_category(key)].append(f"{earned} {name}")
+        status = "✅" if key in earned_keys else "❌"
+        text += f"{icon} {status} {name}\n"
     
-    for cat, items in cat_achievements.items():
-        if items:
-            cat_name = categories[cat]["name"].get(lang, cat)
-            cat_icon = categories[cat]["icon"]
-            text += f"\n{cat_icon} *{cat_name}:*\n"
-            for item in items[:5]:  # Показываем до 5 в каждой категории
-                text += f"{item}\n"
-    
-    # Кнопка назад
-    keyboard = [[InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]]
+    keyboard = [
+    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+]    
     
     await query.edit_message_text(
         text,
@@ -1528,17 +1510,30 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
+    
     info = await get_streak_info(user_id)
-    # Генерируем текстовое представление календаря за последние 30 дней
-    calendar_str = "📅 **Suffering Calendar**\n"
-    calendar_str += f"Current streak: {info['current_streak']} days\n"
-    calendar_str += f"Longest streak: {info['max_streak']} days\n\n"
-    # Упрощённо
-    for i in range(30):
+    
+    text = f"📅 **КАЛЕНДАРЬ СТРАДАНИЙ**\n"
+    text += f"▫️ Текущая серия: **{info['current_streak']}** дн.\n"
+    text += f"▫️ Рекорд: **{info['max_streak']}** дн.\n\n"
+    
+    # Последние 14 дней
+    text += "▫️ Последние 14 дней:\n"
+    for i in range(14):
         day = (datetime.now() - timedelta(days=i)).date()
-        active = "✅" if day in info.get("active_days", []) else "❌"
-        calendar_str += f"{day.strftime('%d.%m')}: {active}\n"
-    await query.edit_message_text(calendar_str, parse_mode=ParseMode.MARKDOWN)
+        active = "🟢" if str(day) in info.get("active_days", []) else "⚫"
+        text += f"{active} {day.strftime('%d.%m')}\n"
+    
+    keyboard = [
+    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
     
 async def delete_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
