@@ -599,6 +599,7 @@ TEXTS = {
         "today_inactive": "Today (inactive)",
         "current_streak": "Current streak",
         "longest_streak": "Longest streak",
+        "progress": "Progress",
         
   },
     "ru": {
@@ -1201,6 +1202,7 @@ TEXTS = {
         "today_inactive": "Сегодня (пропущен)",
         "current_streak": "Текущая серия",
         "longest_streak": "Рекорд",
+        "progress": "Прогресс",
                         
     },
     "es": {
@@ -1802,6 +1804,7 @@ TEXTS = {
         "today_inactive": "Hoy (inactivo)",
         "current_streak": "Racha actual",
         "longest_streak": "Racha más larga",
+        "progress": "Progreso",
         
     },
     "zh": {
@@ -2404,6 +2407,7 @@ TEXTS = {
         "today_inactive": "今天 (未活跃)",
         "current_streak": "当前连续",
         "longest_streak": "最长连续",
+        "progress": "进度",
         
     }
 }
