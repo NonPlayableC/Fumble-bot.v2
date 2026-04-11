@@ -28,7 +28,8 @@ TEXTS = {
             "referrals": "👥 REFERRALS",
             "signal_history": "📡 SIGNAL HISTORY",
             "fumble_history": "🧾 FUMBLE HISTORY",
-            "back_to_menu": "◀️ BACK TO MENU"
+            "back_to_menu": "🏠 BACK TO MENU",
+            "back": "↩️ BACK"
             
         },
         "ignore_text": [
@@ -621,7 +622,8 @@ TEXTS = {
             "referrals": "👥 РЕФЕРАЛЫ",
             "signal_history": "📡 ИСТОРИЯ СИГНАЛОВ",
             "fumble_history": "🧾 ИСТОРИЯ ФАМБЛОВ",
-            "back_to_menu": "◀️ НАЗАД В МЕНЮ"
+            "back_to_menu": "🏠 НАЗАД В МЕНЮ",
+            "back": "↩️ НАЗАД"
             
         },
         "ignore_text": [
@@ -1216,7 +1218,8 @@ TEXTS = {
             "referrals": "👥 REFERIDOS",
             "signal_history": "📡 HISTORIAL DE SEÑALES",
             "fumble_history": "🧾 HISTORIAL DE FUMBLES",
-            "back_to_menu": "◀️ VOLVER AL MENÚ"
+            "back_to_menu": "🏠 VOLVER AL MENÚ",
+            "back": "↩️ ATRÁS"
             
         },
         "ignore_text": [
@@ -1810,7 +1813,8 @@ TEXTS = {
             "referrals": "👥 推荐",
             "signal_history": "📡 信号历史",
             "fumble_history": "🧾 失误历史",
-            "back_to_menu": "◀️ 返回菜单"
+            "back_to_menu": "🏠 返回菜单",
+            "back": "↩️ 返回"
             
         },
         "ignore_text": [
