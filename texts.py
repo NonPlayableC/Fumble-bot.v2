@@ -32,9 +32,7 @@ TEXTS = {
             "back": "↩️ BACK",
             "prev": "◀️ Prev",    # EN
             "next": "Next ▶️",
-            "fumble_why": "🤡 Why did you do it?",
-            "fumble_reasons": ["Panic", "Greed", "Friend's advice", "Just dumb"],
-            "cancel_btn": "❌ Cancel",
+            "manual_fumble": "🧠 Degen Confession",
             
         },
         "ignore_text": [
@@ -194,6 +192,30 @@ TEXTS = {
             "Analyzing... Analyzing... Done. You're finished. I'll tell you why.",
             "Wait. Loading your fumble result. Internet is slow. Like your reactions.",
             "Hold on. I need to make sure this isn't a new record for stupidity."
+        ],
+        "no_wallet_for_smart_fumble": [
+            "🔍 No wallet? I can't see your suffering. Connect it and come back. 🤡",
+            "👛 You're wallet-less? I'm not a psychic. Drop the address.",
+            "💳 Show me the wallet. Or are you scared I'll see your -90%?",
+            "🔍 Smart Fumble is for those with something to lose. You apparently have nothing.",
+            "🦝 Without a wallet, you're a trader with no money. Useless. Connect it.",
+            "📭 No wallet connected. Try 'Degen Confession' in Game Center!"
+        ],
+        "no_tx_for_smart_fumble": [
+            "📭 No transactions. Do you even trade or just stare?",
+            "🦗 Not a single trade in 24 hours. Boring.",
+            "💤 Sleeping? Market's crashing and you're doing nothing.",
+            "📉 No transactions? Good. Doing nothing is better than doing what you do.",
+            "🦝 I found no trades. You just connected a wallet and sit there? Try 'Degen Confession'.",
+            "📭 Empty. Like your portfolio. Try the manual quiz in Game Center!"
+        ],
+        "smart_fumble_error": [
+            "⚠️ Something broke. Even my enemy tech couldn't handle your stupidity.",
+            "💥 Analysis error. Your trade is so bad I refuse to comment.",
+            "🦝 Failed to analyze. Try 'Degen Confession' — at least we'll laugh.",
+            "⚠️ Glitch. Either the tx is broken or you broke me. Go to Game Center.",
+            "📉 Can't calculate your loss. Probably infinite. Try manual quiz.",
+            "💀 Analysis failed. Your trade melted my brain. 'Degen Confession' awaits."
         ],
         "fumble_result_high": [
             "Your diagnosis — BINTY at {score}%. You buy the top, sell the bottom, and panic in between. It's incurable. 🤡",
@@ -661,9 +683,7 @@ TEXTS = {
             "back": "↩️ НАЗАД",
             "prev": "◀️ Назад",   # RU
             "next": "Вперёд ▶️",
-            "fumble_why": "🤡 Почему ты это сделал?",
-            "fumble_reasons": ["Паника", "Жадность", "Совет друга", "Просто тупанул"],
-            "cancel_btn": "❌ Отмена",
+            "manual_fumble": "🧠 Исповедь дегена",
             
         },
         "ignore_text": [
@@ -824,6 +844,30 @@ TEXTS = {
             "Анализирую... Анализирую... Всё. Тебе конец. Сейчас скажу почему.",
             "Подожди. Загружаю твой результат фамбла. Интернет медленный. Как твои реакции.",
             "Секунду. Я должен убедиться, что это не новый рекорд глупости."
+        ],
+        "no_wallet_for_smart_fumble": [
+            "🔍 Без кошелька я не вижу твоих страданий. Привяжи и возвращайся. 🤡",
+            "👛 Ты вообще без wallet'а? Я не экстрасенс. Жду адрес.",
+            "💳 Кошелёк в студию. Или боишься, что я увижу твои -90%?",
+            "🔍 Умный фамбл — для тех, у кого есть что терять. У тебя, видимо, нет.",
+            "🦝 Без кошелька ты как трейдер без денег. Бесполезен. Привяжи.",
+            "📭 Кошелёк не привязан. Можешь пройти «Исповедь дегена» в Game Center!"
+        ],
+        "no_tx_for_smart_fumble": [
+            "📭 Транзакций нет. Ты вообще торгуешь или просто смотришь?",
+            "🦗 За 24 часа ни одной сделки. Скучно с тобой.",
+            "💤 Ты что, спишь? Рынок падает, а ты бездействуешь.",
+            "📉 Нет транзакций? Правильно, лучше ничего не делать, чем делать как ты.",
+            "🦝 Я не нашёл твоих сделок. Ты просто привязал кошелёк и сидишь? Жми «Исповедь дегена».",
+            "📭 Пусто. Как твой портфель. Попробуй ручной опрос в Game Center!"
+        ],
+        "smart_fumble_error": [
+            "⚠️ Что-то сломалось. Даже мои вражеские технологии не выдержали твоей глупости.",
+            "💥 Ошибка анализа. Видимо, твоя сделка настолько ужасна, что я отказываюсь это комментировать.",
+            "🦝 Не удалось проанализировать. Попробуй «Исповедь дегена» — там хоть посмеёмся.",
+            "⚠️ Сбой. Либо транзакция кривая, либо ты меня довёл. Иди в Game Center.",
+            "📉 Не могу посчитать твой убыток. Наверное, он бесконечен. Попробуй ручной опрос.",
+            "💀 Анализ провален. Твоя сделка сломала мне мозг. «Исповедь дегена» ждёт."
         ],
         "fumble_result_high": [
             "Твой диагноз — BINTY на {score}%. Ты покупаешь хай, продаёшь дно, а между ними паникуешь. Это не лечится. 🤡",
@@ -1292,6 +1336,7 @@ TEXTS = {
             "back": "↩️ ATRÁS",
             "prev": "◀️ Atrás",   # ES
             "next": "Siguiente ▶️",
+            "manual_fumble": "🧠 Confesión Degenerada",
             
         },
         "ignore_text": [
@@ -1451,6 +1496,30 @@ TEXTS = {
             "Analizando... Analizando... Listo. Estás acabado. Ahora te diré por qué.",
             "Espera. Cargando tu resultado. El internet es lento. Como tus reflejos.",
             "Espera. Necesito asegurarme de que esto no sea un nuevo récord de estupidez."
+        ],
+        "no_wallet_for_smart_fumble": [
+            "🔍 ¿Sin cartera? No puedo ver tu sufrimiento. Conéctala y vuelve. 🤡",
+            "👛 ¿Sin wallet? No soy psíquico. Pasa la dirección.",
+            "💳 Muéstrame la cartera. ¿O tienes miedo de que vea tu -90%?",
+            "🔍 Smart Fumble es para los que tienen algo que perder. Tú, al parecer, nada.",
+            "🦝 Sin cartera eres un trader sin dinero. Inútil. Conéctala.",
+            "📭 No hay cartera conectada. ¡Prueba 'Confesión Degenerada' en Game Center!"
+        ],
+        "no_tx_for_smart_fumble": [
+            "📭 Sin transacciones. ¿Operas o solo miras?",
+            "🦗 Ni una operación en 24h. Aburrido.",
+            "💤 ¿Durmiendo? El mercado cae y tú sin hacer nada.",
+            "📉 ¿Sin transacciones? Bien. No hacer nada es mejor que hacer lo que haces.",
+            "🦝 No encontré operaciones. Conectaste la cartera y te sentaste? Prueba 'Confesión Degenerada'.",
+            "📭 Vacío. Como tu portafolio. ¡Prueba el quiz manual en Game Center!"
+        ],
+        "smart_fumble_error": [
+            "⚠️ Algo se rompió. Ni mi tecnología enemiga soportó tu estupidez.",
+            "💥 Error de análisis. Tu operación es tan mala que me niego a comentar.",
+            "🦝 No se pudo analizar. Prueba 'Confesión Degenerada' — al menos nos reiremos.",
+            "⚠️ Fallo. O la tx está rota o tú me rompiste. Ve al Game Center.",
+            "📉 No puedo calcular tu pérdida. Probablemente infinita. Prueba quiz manual.",
+            "💀 Análisis fallido. Tu operación me derritió el cerebro. 'Confesión Degenerada' espera."
         ],
         "fumble_result_high": [
             "Tu diagnóstico — BINTY al {score}%. Compras el pico, vendes el suelo, y panicoteas entre medio. No tiene cura. 🤡",
@@ -1919,6 +1988,7 @@ TEXTS = {
             "back": "↩️ 返回",
             "prev": "◀️ 上一页",  # ZH
             "next": "下一页 ▶️",
+            "manual_fumble": "🧠 赌狗忏悔",
             
         },
         "ignore_text": [
@@ -2078,6 +2148,30 @@ TEXTS = {
             "分析中... 分析中... 好了。你完了。现在告诉你为什么。",
             "等等。加载你的失误结果。网络很慢。就像你的反应。",
             "等等。我需要确认这不是新的愚蠢纪录。"
+        ],
+        "no_wallet_for_smart_fumble": [
+            "🔍 没钱包？我看不到你的痛苦。绑定了再回来。🤡",
+            "👛 没钱包？我不是先知。把地址拿来。",
+            "💳 让我看看你的钱包。还是你怕我看到-90%？",
+            "🔍 智能失误是给那些有东西可输的人的。你显然没有。",
+            "🦝 没钱包你就像没钱交易员。没用。绑定它。",
+            "📭 没有连接钱包。试试游戏中心的「赌狗忏悔」！"
+        ],
+        "no_tx_for_smart_fumble": [
+            "📭 没有交易。你到底在交易还是光看着？",
+            "🦗 24小时内一笔交易都没有。无聊。",
+            "💤 在睡觉？市场在崩盘而你无动于衷。",
+            "📉 没交易？好。什么都不做比你做的那些强。",
+            "🦝 我没找到任何交易。你只是绑了钱包然后坐那？试试「赌狗忏悔」。",
+            "📭 空的。就像你的投资组合。试试游戏中心的问答！"
+        ],
+        "smart_fumble_error": [
+            "⚠️ 出错了。连我的敌方技术都受不了你的愚蠢。",
+            "💥 分析错误。你的交易太糟糕了我拒绝评论。",
+            "🦝 分析失败。试试「赌狗忏悔」——至少我们还能笑一笑。",
+            "⚠️ 故障。要么交易数据坏了，要么你把我搞坏了。去游戏中心。",
+            "📉 无法计算你的亏损。大概是无限大。试试手动问答。",
+            "💀 分析失败。你的交易让我大脑宕机。「赌狗忏悔」等着你。"
         ],
          "fumble_result_high": [
             "你的诊断 — 失误率 {score}%。你高点买入，低点卖出，中间还在恐慌。治不好。🤡",
