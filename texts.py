@@ -493,6 +493,16 @@ TEXTS = {
             "Here's a picture. Look while your portfolio crashes. Entertain yourself.",
             "Here. This is the only thing I can give you for free. And without harming your health."
         ],
+        "titles": {
+            "top1": "👑 King of Bottom",
+            "top2": "💀 Bottom Watcher",
+            "top3": "🤡 Throne Jester",
+            "streak7": "🧹 Courtier",
+            "streak30": "🐩 Loyal Dog",
+            "fumble100": "🧎 System Slave",
+            "fumble50": "🥇 Seasoned Degen",
+            "fumble10": "🗿 Young Padawan"
+        },
         "sticker": [
             "Here's a sticker. It's the only thing here that won't lose value. 🎨",
             "🎨 Sticker. At least it doesn't lose value. Unlike your portfolio.",
@@ -1095,6 +1105,16 @@ TEXTS = {
             "Вот тебе картинка. Смотри, пока твой портфель падает. Развлекись.",
             "Держи. Это единственное, что я могу тебе дать бесплатно. И без вреда для здоровья."
         ],
+        "titles": {
+            "top1": "👑 Король дна",
+            "top2": "💀 Смотрящий дна",
+            "top3": "🤡 Шут при троне",
+            "streak7": "🧹 Придворный",
+            "streak30": "🐩 Верный пёс",
+            "fumble100": "🧎 Раб системы",
+            "fumble50": "🥇 Опытный деген",
+            "fumble10": "🗿 Юный падаван"
+        },
         "sticker": [
             "Держи стикер. Это единственное, что здесь не потеряет в цене. 🎨",
             "🎨 Стикер. Он хотя бы не падает в цене. В отличие от твоего портфеля.",
@@ -1697,6 +1717,16 @@ TEXTS = {
             "Aquí tienes una imagen. Mira mientras tu cartera se desploma. Entretenido.",
             "Aquí. Esto es lo único que puedo darte gratis. Y sin dañar tu salud."
         ],
+        "titles": {
+            "top1": "👑 Rey del Fondo",
+            "top2": "💀 Vigilante del Fondo",
+            "top3": "🤡 Bufón del Trono",
+            "streak7": "🧹 Cortesano",
+            "streak30": "🐩 Perro Leal",
+            "fumble100": "🧎 Esclavo del Sistema",
+            "fumble50": "🥇 Degen Experto",
+            "fumble10": "🗿 Joven Padawan"
+        },
         "sticker": [
             "Aquí tienes un sticker. Es lo único aquí que no perderá valor. 🎨",
             "🎨 Sticker. Al menos esto no pierde valor. A diferencia de tu cartera.",
@@ -2300,6 +2330,16 @@ TEXTS = {
             "给你张图。看着你的投资组合崩盘时娱乐一下。",
             "给你。这是我能免费给你的唯一东西。还不伤害你的健康。"
         ],
+        "titles": {
+            "top1": "👑 底部之王",
+            "top2": "💀 底部看守",
+            "top3": "🤡 王座小丑",
+            "streak7": "🧹 朝臣",
+            "streak30": "🐩 忠犬",
+            "fumble100": "🧎 系统奴隶",
+            "fumble50": "🥇 熟手赌狗",
+            "fumble10": "🗿 小学徒"
+        },
         "sticker": [
             "给你个贴纸。这是这里唯一不会贬值的东西。🎨",
             "🎨 贴纸。至少这个不会贬值。不像你的投资组合。",
