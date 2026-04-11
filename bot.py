@@ -46,7 +46,8 @@ from supabase_client import (
     send_signal_of_the_day,
     send_auto_signals,
     get_all_achievements,
-    check_signal_fumble_bonus
+    check_signal_fumble_bonus,
+    fetch_fumble_questions
 )
     
 from texts import TEXTS, get_text, add_hooks
@@ -549,6 +550,37 @@ def generate_portfolio_chart_fake():
     img_bytes.seek(0)
     return img_bytes
 
+def generate_portfolio_chart_real(history, current_amount, current_value):
+    if not history:
+        return generate_portfolio_chart_fake()
+    width, height = 500, 300
+    image = Image.new('RGB', (width, height), color='black')
+    draw = ImageDraw.Draw(image)
+    max_value = max([p["value"] for p in history]) if history else 1
+    min_value = min([p["value"] for p in history]) if history else 0
+    if max_value == min_value:
+        max_value = min_value + 1
+    points = []
+    for i, point in enumerate(history):
+        x = i * (width // (len(history)-1 if len(history)>1 else 1))
+        y = height - ((point["value"] - min_value) / (max_value - min_value)) * height * 0.8 - 20
+        points.append((x, y))
+    for i in range(len(points)-1):
+        draw.line([points[i], points[i+1]], fill='red', width=3)
+    for point in points:
+        draw.ellipse([point[0]-3, point[1]-3, point[0]+3, point[1]+3], fill='white')
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        font = ImageFont.load_default()
+    draw.text((10, 10), "BINTY Portfolio", fill="white", font=font)
+    draw.text((10, height-20), f"Balance: {current_amount:.4f} BINTY", fill="#00ff99", font=font)
+    draw.text((width-150, 10), f"Value: ${current_value:.2f}", fill="white", font=font)
+    img_bytes = BytesIO()
+    image.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
+    
 # ==================== СЕРТИФИКАТ ПОЗОРА ====================
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
@@ -977,7 +1009,6 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await check_and_award_achievements(user_id, 'fumble', score)
   
 async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Запускает ручной опрос из 40 вопросов (Исповедь дегена)"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -988,11 +1019,20 @@ async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     
-    # Инициализируем состояние
+    questions = await fetch_fumble_questions()
+    if not questions:
+        await query.message.reply_text("❌ Вопросы не загружены. Попробуй позже.")
+        return
+    
+    # Перемешиваем вопросы для разнообразия
+    import random
+    random.shuffle(questions)
+    
     user_fumble_state[user_id] = {
         "q_index": 0,
         "answers": [],
-        "score": 0
+        "score": 0,
+        "questions": questions[:5]  # берём 5 случайных вопросов из 40
     }
     
     await show_fumble_question(user_id, chat_id, lang, context)
@@ -1002,32 +1042,29 @@ async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: C
     if not state:
         return
     
-    questions = TEXTS[lang].get("fumble_questions", [])
-    if not questions:
-        await context.bot.send_message(chat_id=chat_id, text="❌ Вопросы не найдены")
-        return
-    
+    questions = state["questions"]
     q_index = state["q_index"]
     total = len(questions)
     
     if q_index >= total:
-        # Все вопросы пройдены — показываем результат
         await finish_manual_fumble(user_id, chat_id, lang, context)
         return
     
-    question = questions[q_index]
-    text = f"🎲 **Вопрос {q_index + 1}/{total}**\n\n{question['q']}"
+    q_data = questions[q_index]
+    question_text = q_data[f"question_{lang}"] or q_data["question_en"]
+    
+    text = f"🎲 **Вопрос {q_index + 1}/{total}**\n\n{question_text}"
     
     buttons = []
-    for opt in question["options"]:
+    for opt in q_data["options"]:
+        option_text = opt[f"option_{lang}"] or opt["option_en"]
         weight = opt["weight"]
         callback = f"fumble_answer_{q_index}_{weight}"
-        buttons.append([InlineKeyboardButton(opt["text"], callback_data=callback)])
+        buttons.append([InlineKeyboardButton(option_text, callback_data=callback)])
     
     buttons.append([InlineKeyboardButton("❌ " + get_text(lang, "cancel_btn"), callback_data="fumble_cancel")])
     keyboard = InlineKeyboardMarkup(buttons)
     
-    # Редактируем меню
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -1037,15 +1074,8 @@ async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: C
                 reply_markup=keyboard,
                 parse_mode=ParseMode.MARKDOWN
             )
-        except Exception as e:
-            logging.error(f"Edit fumble question failed: {e}")
-            msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=keyboard,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            menu_message_ids[user_id] = msg.message_id
+        except:
+            pass
     else:
         msg = await context.bot.send_message(
             chat_id=chat_id,
@@ -1054,7 +1084,7 @@ async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: C
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-                
+                        
 async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1089,7 +1119,7 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user_fumble_state[user_id] = state
     
     await show_fumble_question(user_id, query.message.chat_id, lang, context)
-    
+         
 async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
     state = user_fumble_state.get(user_id)
     if not state:
@@ -1173,8 +1203,8 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chart = generate_portfolio_chart_fake()
         text = get_text(lang, "portfolio", 0, 0, 0)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-
+        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+                
 # Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
 # language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
 # quests, referrals, signal_history, fumble_history) аналогично добавляются.
@@ -1208,8 +1238,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price_text = get_text(lang, "price_response", usd, emoji, change)
     
     final_text = add_hooks(lang, price_text)
-    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-            
+    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+                
 async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1229,8 +1259,8 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = get_text(lang, "holders", count)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-                
+        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+                        
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1306,10 +1336,10 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
-    url = await get_random_meme()
+    url = random.choice(MEMES)
     text = get_text(lang, "meme")
     final_text = add_hooks(lang, text)
-    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+    await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
         
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1760,6 +1790,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     history = await get_signal_history(user_id, limit=10)
@@ -1768,22 +1799,19 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         lines = [f"{h.get('created_at', '')[:10]}: {h.get('signal_text', '')[:50]}..." for h in history]
         text = get_text(lang, "signal_history_text", "\n".join(lines))
+    
+    keyboard = [[InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]]
+    
     await delete_previous_and_send(
         chat_id, user_id, text, context,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
-    #await query.edit_message_text(
-        #text,
-        #reply_markup=InlineKeyboardMarkup([
-            #[InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-       #  ])
-  #  )
-
 
 async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     history = await get_fumble_history(user_id, limit=10)
@@ -1792,12 +1820,15 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         lines = [f"{h.get('created_at', '')[:10]}: Score {h.get('score', 0)}/10 ({h.get('type', 'manual')})" for h in history]
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
+    
+    keyboard = [[InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]]
+    
     await delete_previous_and_send(
         chat_id, user_id, text, context,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
-
+    
 async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2237,7 +2268,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "confirm_unsubscribe": await confirm_unsubscribe(update, context)
     elif data == "cancel_subscribe": await cancel_action(update, context)
     elif data == "cancel_unsubscribe": await cancel_action(update, context)
-    elif data == "close_message": await close_message(update, context)
     elif data == "lb_next": await lb_next(update, context)
     elif data == "lb_prev": await lb_prev(update, context)
     elif data == "delete_wallet":
