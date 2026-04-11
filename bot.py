@@ -1907,8 +1907,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "cancel_unsubscribe": await cancel_action(update, context)
     elif data == "lb_next": await lb_next(update, context)
     elif data == "lb_prev": await lb_prev(update, context)
-    elif data == "delete_wallet": await delete_wallet(update, context)
-    elif data.startswith("claim_quest_"): await claim_quest(update, context)
+    elif data == "delete_wallet":
+        await delete_wallet(update, context)
+    elif data.startswith("claim_quest_"):
+        await claim_quest(update, context)
+    elif data == "close_message":
+        user_id = query.from_user.id
+        chat_id = query.message.chat_id
+        if user_id in last_responses:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+                del last_responses[user_id]
+            except:
+                pass
+        await query.message.delete()
     elif data.startswith("lang_"):
         lang_code = data.split("_")[1]
         user_id = query.from_user.id
@@ -1916,17 +1928,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(user_id, lang_code)
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
-        elif data == "close_message":
-            user_id = query.from_user.id
-            chat_id = query.message.chat_id
-            if user_id in last_responses:
-                try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-                    del last_responses[user_id]
-                except:
-                    pass
-            await query.message.delete()
-            
+        
 # ... конец button_callback ...
 
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
