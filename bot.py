@@ -898,7 +898,7 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             amt, val = balance
             result_text += f"\n\n💰 BINTY: {amt:.4f} (${val:.2f})"
     final_text = add_hooks(lang, result_text)
-    await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+    await delete_previous_and_send(user_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
     await check_and_award_achievements(user_id, 'fumble', score)
 
 async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1229,9 +1229,13 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
         [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
         [InlineKeyboardButton("🇨🇳 中文", callback_data="lang_zh")],
-        [InlineKeyboardButton("↩️ Back", callback_data="back_to_menu")]
+        [InlineKeyboardButton("↩️ Назад", callback_data="back_to_menu")]
     ])
-    await query.message.reply_text("🌐 Select language / Выбери язык / Selecciona idioma / 选择语言:", reply_markup=kb)
+    
+    await query.edit_message_text(
+        "🌐 Выбери язык / Select language:",
+        reply_markup=kb
+    )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1587,8 +1591,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = query.from_user.id
         chat_id = query.message.chat_id
         await set_language(user_id, lang_code)
-        await query.answer()
-        await query.edit_message_text(text=get_text(lang_code, "lang_changed"))
+        await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
     
 # ... конец button_callback ...
@@ -1634,8 +1637,6 @@ def main():
     #threading.Thread(target=run_health_server, daemon=True).start()
     #logging.info(f"Health check server started on port {port}")
     
-    logging.info("🚀 BINTY Agent starting with polling...")
-    app.run_polling()
     logging.info("🚀 BINTY Agent starting with polling...")
     print("🚀 Bot is starting...")
     app.run_polling()
