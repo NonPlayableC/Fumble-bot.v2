@@ -1134,7 +1134,7 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
-    url = random.choice(MEMES)
+    url = await get_random_meme()
     text = get_text(lang, "meme")
     final_text = add_hooks(lang, text)
     await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
@@ -1424,29 +1424,46 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     await generate_daily_quests_for_user(user_id)
     active_quests = await get_user_active_quests(user_id)
+    completed_quests = await get_user_completed_quests(user_id, limit=3)
     
-    text = f"🎯 **КВЕСТЫ**\n\n"
+    text = f"🎯 **{TEXTS[lang].get('quests_title', 'QUESTS')}**\n\n"
     
     if active_quests:
+        text += "*" + get_text(lang, "active_quests") + ":*\n"
         for uq in active_quests:
             quest = uq.get("quests", {})
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
             progress = uq["progress"]
             target = quest["condition_value"]
-            
-            # Квадраты прогресса
             filled = "🟩" * progress
             empty = "⬛" * (target - progress)
             bar = filled + empty
-            
-            text += f"▫️ {name}\n{bar} {progress}/{target}\n\n"
+            reward = quest.get("reward_points", 0)
+            status = " ✅" if uq["completed"] else ""
+            text += f"\n▫️ {name}{status}\n{bar} {progress}/{target}\n└ 💰 +{reward}\n"
     else:
-        text += "▫️ Нет активных квестов\n"
+        text += "*" + get_text(lang, "no_active_quests") + "*\n"
+    
+    if completed_quests:
+        text += "\n*" + get_text(lang, "recently_completed") + ":*\n"
+        for uq in completed_quests:
+            quest = uq.get("quests", {})
+            name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
+            claimed = "✅" if uq["reward_claimed"] else "⏳"
+            text += f"{claimed} {name}\n"
     
     keyboard = []
     for uq in active_quests:
@@ -1458,12 +1475,25 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")])
     keyboard.append([InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
-
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
 
 async def claim_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает клейм награды квеста"""
@@ -1491,26 +1521,49 @@ async def claim_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
     
     count = await get_referrals_count(user_id)
     link = f"https://t.me/BintyAgentBot?start=ref_{user_id}"
     
-    text = f"👥 **РЕФЕРАЛЫ**\n\n"
-    text += f"▫️ Приглашено: **{count}**\n"
-    text += f"▫️ Твоя ссылка:\n`{link}`\n\n"
-    text += f"▫️ Приглашай друзей и получай $BINTY за их фамблы!\n"
+    text = f"👥 **{TEXTS[lang].get('referrals_title', 'REFERRALS')}**\n\n"
+    text += f"▫️ {get_text(lang, 'invited')}: **{count}**\n"
+    text += f"▫️ {get_text(lang, 'your_link')}:\n`{link}`\n\n"
+    text += get_text(lang, "referral_info")
     
     keyboard = [
-    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-]    
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+    ]
+    
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
 
 
 async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1583,18 +1636,30 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
     
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает достижения в стиле игровой вкладки"""
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     
-    # Получаем данные
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     earned = await get_user_achievements(user_id)
     earned_keys = set([a["achievement_key"] for a in earned]) if earned else set()
     all_achievements = await get_all_achievements(lang)
     
-    # Группируем по категориям
+    total_earned = len(earned_keys)
+    total_all = len(all_achievements)
+    
+    text = f"🏆 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
+    text += f"▫️ {get_text(lang, 'progress')}: {total_earned}/{total_all}\n\n"
+    
     categories = {
         "fumble": {"icon": "🤡", "name": {"en": "Fumbles", "ru": "Фамблы", "es": "Fumbles", "zh": "失误"}},
         "signal": {"icon": "📡", "name": {"en": "Signals", "ru": "Сигналы", "es": "Señales", "zh": "信号"}},
@@ -1610,36 +1675,20 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if cat in cat_achievements:
             cat_achievements[cat].append(ach)
     
-    # Собираем текст
-    total_earned = len(earned_keys)
-    total_all = len(all_achievements)
-    
-    text = f"🏆 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
-    text += f"▫️ {get_text(lang, 'progress')}: {total_earned}/{total_all}\n\n"
-    
     for cat, ach_list in cat_achievements.items():
         if not ach_list:
             continue
-        
         cat_name = categories[cat]["name"].get(lang, cat)
         cat_icon = categories[cat]["icon"]
-        
         earned_in_cat = sum(1 for a in ach_list if a["achievement_key"] in earned_keys)
         total_in_cat = len(ach_list)
-        
         text += f"{cat_icon} **{cat_name}** ({earned_in_cat}/{total_in_cat})\n"
-        
-        for ach in ach_list[:8]:  # Показываем до 8 в категории
+        for ach in ach_list[:8]:
             key = ach["achievement_key"]
             is_earned = key in earned_keys
             icon = ach.get("icon", "🏅")
             name = ach.get(f"name_{lang}", ach.get("name_en", key))
-            
-            if is_earned:
-                text += f"  ✅ {icon} {name}\n"
-            else:
-                text += f"  🔒 {icon} {name}\n"
-        
+            text += f"  {'✅' if is_earned else '🔒'} {icon} {name}\n"
         text += "\n"
     
     keyboard = [
@@ -1647,11 +1696,26 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id      
 
 def get_category(key: str) -> str:
     """Определяет категорию ачивки по ключу"""
@@ -1675,57 +1739,73 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    # Удаляем контентное сообщение, если есть
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    logging.info(f"MY_STATS called by user {user_id}")
     
-    stats = await get_user_stats(user_id)
-    streak_info = await get_streak_info(user_id)
-    position = await get_user_position(user_id)
-    
-    level = get_level(stats["average"]) if stats else 1
-    level_name = get_level_name(level, lang)
-    
-    text = get_text(
-        lang, "my_stats",
-        level=level,
-        level_name=level_name,
-        total_fumbles=stats["count"] if stats else 0,
-        avg_score=stats["average"] if stats else 0,
-        total_signals=stats.get("signal_clicks", 0) if stats else 0,
-        streak=streak_info["current_streak"],
-        referrals=await get_referrals_count(user_id),
-        position=position
-    )
-    
-    keyboard = get_my_stats_menu(lang)
-    
-    # Редактируем меню
-    if user_id in menu_message_ids:
-        try:
-            await context.bot.edit_message_text(
+    try:
+        # Удаляем контентное сообщение, если есть
+        if user_id in last_responses:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+                del last_responses[user_id]
+            except Exception as e:
+                logging.warning(f"MY_STATS: failed to delete content message: {e}")
+
+        stats = await get_user_stats(user_id)
+        streak_info = await get_streak_info(user_id)
+        position = await get_user_position(user_id)
+        
+        level = get_level(stats["average"]) if stats else 1
+        level_name = get_level_name(level, lang)
+        
+        text = get_text(
+            lang, "my_stats",
+            level=level,
+            level_name=level_name,
+            total_fumbles=stats["count"] if stats else 0,
+            avg_score=stats["average"] if stats else 0,
+            total_signals=stats.get("signal_clicks", 0) if stats else 0,
+            streak=streak_info["current_streak"],
+            referrals=await get_referrals_count(user_id),
+            position=position
+        )
+        
+        keyboard = get_my_stats_menu(lang)
+        
+        # Редактируем меню
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logging.info(f"MY_STATS: menu edited for user {user_id}")
+            except Exception as e:
+                logging.error(f"MY_STATS: failed to edit menu: {e}")
+                # Пробуем отправить новое сообщение
+                msg = await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                menu_message_ids[user_id] = msg.message_id
+        else:
+            msg = await context.bot.send_message(
                 chat_id=chat_id,
-                message_id=menu_message_ids[user_id],
                 text=text,
                 reply_markup=keyboard,
                 parse_mode=ParseMode.MARKDOWN
             )
-        except Exception as e:
-            logging.error(f"Failed to edit menu for {user_id}: {e}")
-    else:
-        # Если меню нет, отправляем новое
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=keyboard,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        menu_message_ids[user_id] = msg.message_id
-        
+            menu_message_ids[user_id] = msg.message_id
+            logging.info(f"MY_STATS: new menu message sent for user {user_id}")
+            
+    except Exception as e:
+        logging.error(f"MY_STATS crashed for user {user_id}: {e}")
+        await query.message.reply_text(f"❌ Ошибка при загрузке статистики. Попробуй позже.")
+                
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
@@ -1826,30 +1906,30 @@ def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
 async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     info = await get_streak_info(user_id)
     active_days = set(info.get("active_days", []))
-    
     today = date.today()
-    
-    # Находим начало месяца
     first_day = today.replace(day=1)
-    # Находим первый понедельник перед началом месяца или сам первый день
     start_date = first_day - timedelta(days=first_day.weekday())
     
-    # Дни недели (сокращения)
     weekdays = {
         "en": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
         "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
         "es": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"],
         "zh": ["一", "二", "三", "四", "五", "六", "日"]
     }
-    
     days_header = weekdays.get(lang, weekdays["en"])
-    
-    # Заголовок календаря
     month_names = {
         "en": today.strftime("%B %Y"),
         "ru": ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", 
@@ -1857,65 +1937,56 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "es": today.strftime("%B %Y"),
         "zh": f"{today.year}年{today.month}月"
     }
-    
     month_title = month_names.get(lang, month_names["en"])
     
-    text = f"📅 **{month_title}**\n\n"
-    
-    # Заголовок дней недели
-    text += "`"
+    text = f"📅 **{month_title}**\n\n`"
     for day in days_header:
         text += f"{day} "
     text += "`\n"
     
-    # Сетка 4x7
     current = start_date
     for week in range(4):
         text += "`"
         for day in range(7):
             current_str = current.isoformat()
-            
             if current.month != today.month:
-                # Дни других месяцев — серые
                 text += "⚫ "
             elif current_str in active_days:
-                # Активные дни — зелёные
-                if current == today:
-                    text += "🔥 "  # Сегодня и активный
-                else:
-                    text += "🟢 "
+                text += "🔥 " if current == today else "🟢 "
             else:
-                # Неактивные дни текущего месяца
-                if current == today:
-                    text += "⭕ "  # Сегодня, но не активный
-                else:
-                    text += "⚫ "
-            
+                text += "⭕ " if current == today else "⚫ "
             current += timedelta(days=1)
         text += "`\n"
     
-    # Легенда
-    text += "\n"
-    text += "🟢 " + get_text(lang, "active_day") + "  "
-    text += "⚫ " + get_text(lang, "inactive_day") + "  "
-    text += "🔥 " + get_text(lang, "today_active") + "  "
-    text += "⭕ " + get_text(lang, "today_inactive") + "\n"
-    
-    # Статистика
-    text += "\n"
-    text += f"▫️ {get_text(lang, 'current_streak')}: **{info['current_streak']}**\n"
-    text += f"▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**\n"
+    text += "\n🟢 " + get_text(lang, "active_day") + "  ⚫ " + get_text(lang, "inactive_day")
+    text += "\n🔥 " + get_text(lang, "today_active") + "  ⭕ " + get_text(lang, "today_inactive")
+    text += f"\n\n▫️ {get_text(lang, 'current_streak')}: **{info['current_streak']}**"
+    text += f"\n▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**"
     
     keyboard = [
         [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
         [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
     
 async def delete_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
