@@ -29,7 +29,9 @@ TEXTS = {
             "signal_history": "📡 SIGNAL HISTORY",
             "fumble_history": "🧾 FUMBLE HISTORY",
             "back_to_menu": "🏠 BACK TO MENU",
-            "back": "↩️ BACK"
+            "back": "↩️ BACK",
+            "prev": "◀️ Prev",    # EN
+            "next": "Next ▶️",
             
         },
         "ignore_text": [
@@ -640,7 +642,9 @@ TEXTS = {
             "signal_history": "📡 ИСТОРИЯ СИГНАЛОВ",
             "fumble_history": "🧾 ИСТОРИЯ ФАМБЛОВ",
             "back_to_menu": "🏠 НАЗАД В МЕНЮ",
-            "back": "↩️ НАЗАД"
+            "back": "↩️ НАЗАД",
+            "prev": "◀️ Назад",   # RU
+            "next": "Вперёд ▶️",
             
         },
         "ignore_text": [
@@ -1253,7 +1257,9 @@ TEXTS = {
             "signal_history": "📡 HISTORIAL DE SEÑALES",
             "fumble_history": "🧾 HISTORIAL DE FUMBLES",
             "back_to_menu": "🏠 VOLVER AL MENÚ",
-            "back": "↩️ ATRÁS"
+            "back": "↩️ ATRÁS",
+            "prev": "◀️ Atrás",   # ES
+            "next": "Siguiente ▶️",
             
         },
         "ignore_text": [
@@ -1865,7 +1871,9 @@ TEXTS = {
             "signal_history": "📡 信号历史",
             "fumble_history": "🧾 失误历史",
             "back_to_menu": "🏠 返回菜单",
-            "back": "↩️ 返回"
+            "back": "↩️ 返回",
+            "prev": "◀️ 上一页",  # ZH
+            "next": "下一页 ▶️",
             
         },
         "ignore_text": [
