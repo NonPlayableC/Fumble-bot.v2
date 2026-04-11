@@ -518,38 +518,6 @@ async def get_portfolio_history(address: str, days: int = 7):
         logging.error(f"Failed to get portfolio history: {e}")
         return None
 
-def generate_portfolio_chart_real(history, current_amount, current_value):
-    # ... (оставляем как было, только подпись "BINTY Portfolio")
-    if not history:
-        return generate_portfolio_chart_fake()
-    width, height = 500, 300
-    image = Image.new('RGB', (width, height), color='black')
-    draw = ImageDraw.Draw(image)
-    max_value = max([p["value"] for p in history]) if history else 1
-    min_value = min([p["value"] for p in history]) if history else 0
-    if max_value == min_value:
-        max_value = min_value + 1
-    points = []
-    for i, point in enumerate(history):
-        x = i * (width // (len(history)-1 if len(history)>1 else 1))
-        y = height - ((point["value"] - min_value) / (max_value - min_value)) * height * 0.8 - 20
-        points.append((x, y))
-    for i in range(len(points)-1):
-        draw.line([points[i], points[i+1]], fill='red', width=3)
-    for point in points:
-        draw.ellipse([point[0]-3, point[1]-3, point[0]+3, point[1]+3], fill='white')
-    try:
-        font = ImageFont.truetype("arial.ttf", 14)
-    except:
-        font = ImageFont.load_default()
-    draw.text((10, 10), "BINTY Portfolio", fill="white", font=font)
-    draw.text((10, height-20), f"Balance: {current_amount:.4f} BINTY", fill="#00ff99", font=font)
-    draw.text((width-150, 10), f"Value: ${current_value:.2f}", fill="white", font=font)
-    img_bytes = BytesIO()
-    image.save(img_bytes, format='PNG')
-    img_bytes.seek(0)
-    return img_bytes
-
 def generate_portfolio_chart_fake():
     width, height = 500, 300
     image = Image.new('RGB', (width, height), color='black')
@@ -583,47 +551,94 @@ def generate_portfolio_chart_fake():
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
-    width, height = 600, 400
-    img = Image.new('RGB', (width, height), color='#1a1a2e')
+    width, height = 800, 550
+    
+    # Градиентный фон (тёмно-синий → чёрный)
+    img = Image.new('RGB', (width, height), color='#0a0a1a')
     draw = ImageDraw.Draw(img)
     
-    # Рамка
-    draw.rectangle([15, 15, width-15, height-15], outline='#e94560', width=4)
+    # Золотая двойная рамка
+    draw.rectangle([15, 15, width-15, height-15], outline='#d4af37', width=3)
+    draw.rectangle([22, 22, width-22, height-22], outline='#d4af37', width=1)
     
+    # Угловые узоры
+    corner_size = 40
+    for x, y in [(30, 30), (width-30, 30), (30, height-30), (width-30, height-30)]:
+        draw.ellipse([x-5, y-5, x+5, y+5], fill='#d4af37')
+    
+    # Шрифты
     try:
-        font_title = ImageFont.truetype("arial.ttf", 32)
-        font_text = ImageFont.truetype("arial.ttf", 22)
+        font_title = ImageFont.truetype("impact.ttf", 42)
+        font_name = ImageFont.truetype("georgia.ttf", 28)
+        font_text = ImageFont.truetype("georgia.ttf", 20)
+        font_small = ImageFont.truetype("georgia.ttf", 16)
     except:
         font_title = ImageFont.load_default()
-        font_text = ImageFont.load_default()
+        font_name = font_title
+        font_text = font_title
+        font_small = font_title
     
     # Заголовок
-    draw.text((width//2, 40), "CERTIFICATE OF SHAME", fill='#e94560', font=font_title, anchor='mm')
-    draw.text((width//2, 75), "BINTY", fill='#ffffff', font=font_text, anchor='mm')
+    title = TEXTS[lang].get("certificate_title", "CERTIFICATE OF SHAME")
+    draw.text((width//2, 60), title, fill='#d4af37', font=font_title, anchor='mm')
     
-    # Имя
-    draw.text((width//2, 130), username or f"User {user_id}", fill='#ffffff', font=font_text, anchor='mm')
+    # Подзаголовок
+    draw.text((width//2, 105), "BINTY", fill='#ffffff', font=font_name, anchor='mm')
     
-    # Статистика
-    y = 180
-    lines = [
-        f"Level: {level_name}",
-        f"Total Fumbles: {total_fumbles}",
-        f"Avg Score: {avg_score:.1f}",
-        f"Position: #{position}",
-        f"Date: {datetime.now().strftime('%Y-%m-%d')}"
-    ]
-    for line in lines:
-        draw.text((width//2, y), line, fill='#cccccc', font=font_text, anchor='mm')
-        y += 30
+    # Линия-разделитель
+    draw.line([(100, 130), (width-100, 130)], fill='#d4af37', width=1)
     
-    # QR
+    # Имя получателя
+    draw.text((width//2, 170), "This certificate is awarded to", fill='#aaaaaa', font=font_small, anchor='mm')
+    display_name = username or f"User {user_id}"
+    draw.text((width//2, 210), display_name, fill='#ffffff', font=font_name, anchor='mm')
+    
+    # Линия-разделитель
+    draw.line([(150, 240), (width-150, 240)], fill='#d4af37', width=1)
+    
+    # Статистика (две колонки)
+    y = 280
+    col1_x = 180
+    col2_x = 500
+    
+    # Левая колонка
+    draw.text((col1_x, y), f"Level:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 100, y), level_name, fill='#ffffff', font=font_text)
+    
+    draw.text((col1_x, y + 40), f"Total Fumbles:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 150, y + 40), str(total_fumbles), fill='#ffffff', font=font_text)
+    
+    # Правая колонка
+    draw.text((col2_x, y), f"Avg Score:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 120, y), f"{avg_score:.1f}", fill='#ffffff', font=font_text)
+    
+    draw.text((col2_x, y + 40), f"Position:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 120, y + 40), f"#{position}", fill='#ffffff', font=font_text)
+    
+    # Дата выдачи
+    y = 370
+    draw.text((width//2, y), f"Issued: {datetime.now().strftime('%Y-%m-%d')}", fill='#aaaaaa', font=font_small, anchor='mm')
+    
+    # QR-код (справа внизу)
     qr = qrcode.QRCode(box_size=3, border=1)
     qr.add_data(f"https://t.me/BintyAgentBot?start=ref_{user_id}")
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    qr_img = qr_img.resize((90, 90))
-    img.paste(qr_img, (width-120, height-120))
+    qr_img = qr_img.resize((100, 100))
+    img.paste(qr_img, (width-140, height-140))
+    
+    # Подпись под QR
+    draw.text((width-90, height-30), "Scan to join", fill='#888888', font=font_small, anchor='mm')
+    
+    # Нижняя подпись
+    draw.text((width//2, height-40), "BINTY — Financial Enemy #1", fill='#d4af37', font=font_small, anchor='mm')
+    
+    # Полупрозрачная печать по центру
+    stamp = Image.new('RGBA', (300, 100), (0, 0, 0, 0))
+    stamp_draw = ImageDraw.Draw(stamp)
+    stamp_draw.text((150, 50), "BINTY", fill=(212, 175, 55, 30), font=font_title, anchor='mm')
+    stamp = stamp.rotate(15, expand=True)
+    img.paste(stamp, (width//2 - stamp.width//2, height//2 - stamp.height//2), stamp)
     
     img_bytes = BytesIO()
     img.save(img_bytes, format='PNG')
@@ -836,6 +851,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
@@ -845,6 +861,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Проверяем кошелёк
     wallet = await get_wallet_address(user_id)
+    
+    # Если кошелёк ЕСТЬ, пробуем умный фамбл
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
@@ -865,13 +883,24 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await check_and_award_achievements(user_id, 'fumble', score)
             return
         else:
+            # Кошелёк есть, но транзакций нет — сообщаем и переходим к ручному
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
-    # Fallback: ручной опрос
+    # Если кошелька НЕТ или нет транзакций — ручной опрос
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    await query.message.reply_text(get_text(lang, "fumble_pause"))
+    
+    # Отправляем сообщение "Анализирую..." и сохраняем его ID
+    pause_text = get_text(lang, "fumble_pause")
+    pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
+    
     await asyncio.sleep(1.5)
-    await query.message.chat.send_poll(
+    
+    # Удаляем сообщение "Анализирую..."
+    await pause_msg.delete()
+    
+    # Отправляем опрос
+    await context.bot.send_poll(
+        chat_id=chat_id,
         question=get_text(lang, "fumble_question"),
         options=get_text(lang, "fumble_options"),
         type=Poll.REGULAR,
@@ -883,25 +912,31 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = poll_answer.user.id
     lang = await get_language(user_id)
     option_idx = poll_answer.option_ids[0]
+    
     if not await check_rate_limit(user_id):
         await context.bot.send_message(chat_id=user_id, text=TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+    
     score = random.randint(0, 10)
     bonus = await check_signal_fumble_bonus(user_id)
     if bonus:
         score = min(10, score + bonus)
+    
     await save_fumble(user_id, score, type='manual')
     await update_quest_progress(user_id, 'fumble_count', 1)
-    stats = await get_user_stats(user_id)
+    
     result_text = get_text(lang, f"fumble_result_{'high' if score>=7 else 'medium' if score>=4 else 'low'}", score)
-    # PnL
+    
     wallet = await get_wallet_address(user_id)
     if wallet:
         balance = await get_wallet_balance(wallet)
         if balance:
             amt, val = balance
             result_text += f"\n\n💰 BINTY: {amt:.4f} (${val:.2f})"
+    
     final_text = add_hooks(lang, result_text)
+    
+    # Отправляем результат и заменяем предыдущее сообщение
     await delete_previous_and_send(user_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
     await check_and_award_achievements(user_id, 'fumble', score)
 
@@ -997,6 +1032,10 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    if not await check_rate_limit(user_id):
+        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        return
+    
     cancel_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
     ])
@@ -1012,11 +1051,11 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     context.user_data['awaiting_balance'] = False
     await query.answer()
     await query.message.reply_text(get_text(lang, "balance_cancelled"))
-
 
 async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -1068,7 +1107,35 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = get_text(lang, "meme")
     final_text = add_hooks(lang, text)
     await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
-
+    
+async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    stats = await get_user_stats(user_id)
+    if not stats or stats.get("count", 0) == 0:
+        await query.message.reply_text(get_text(lang, "no_fumbles_yet"))
+        return
+    
+    level = get_level(stats["average"])
+    level_name = get_level_name(level, lang)
+    position = await get_user_position(user_id)
+    username = query.from_user.username or query.from_user.first_name
+    
+    try:
+        img = generate_certificate_of_shame(user_id, username, level_name,
+                                            stats["count"], stats["average"],
+                                            position, lang)
+        await log_certificate_request(user_id)
+        
+        caption = TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame.")
+        await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
+    except Exception as e:
+        logging.error(f"Certificate error: {e}")
+        await query.message.reply_text("Error generating certificate")
 
 async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1251,10 +1318,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
     help_text = get_text(lang, "help")
     final_text = add_hooks(lang, help_text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-
+    
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("❌ " + get_text(lang, "close"), callback_data="close_message")]
+    ])
+    
+    await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
 
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1298,10 +1370,8 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
             keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard = [
-    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-]
+    keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")])
+    keyboard.append([InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     await query.edit_message_text(
         text,
@@ -1766,6 +1836,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(user_id, lang_code)
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
+    elif data == "close_message":
+    await query.message.delete()
     
 # ... конец button_callback ...
 
