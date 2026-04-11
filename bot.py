@@ -1617,8 +1617,17 @@ def get_category(key: str) -> str:
 async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
     
     stats = await get_user_stats(user_id)
     streak_info = await get_streak_info(user_id)
@@ -1639,12 +1648,30 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         position=position
     )
     
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
-
+    keyboard = get_my_stats_menu(lang)
+    
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logging.error(f"Failed to edit menu for {user_id}: {e}")
+    else:
+        # Если меню нет, отправляем новое
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
+        
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
