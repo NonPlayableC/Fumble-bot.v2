@@ -862,6 +862,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_and_award_achievements(user_id, 'signal')
     
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Точка входа для фамбла: пробуем умный, иначе ручной опрос"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -882,8 +883,10 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
+    # Проверяем наличие кошелька
     wallet = await get_wallet_address(user_id)
     
+    # === ЕСЛИ КОШЕЛЁК ЕСТЬ, ПРОБУЕМ УМНЫЙ ФАМБЛ ===
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
@@ -903,31 +906,35 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await check_and_award_achievements(user_id, 'fumble', score)
             return
         else:
+            # Кошелёк есть, но транзакций нет — сообщаем и переходим к ручному
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
-    # Ручной опрос
+    # === РУЧНОЙ ОПРОС (ЕСЛИ КОШЕЛЬКА НЕТ ИЛИ ТРАНЗАКЦИЙ НЕТ) ===
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    
+    # Отправляем "Анализирую..."
     pause_text = get_text(lang, "fumble_pause")
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
     last_responses[user_id] = pause_msg.message_id
     
     await asyncio.sleep(1.5)
+    
+    # Удаляем паузу
     await pause_msg.delete()
     
-    poll_msg = await context.bot.send_poll(
+    # Отправляем опрос
+    await context.bot.send_poll(
         chat_id=chat_id,
         question=get_text(lang, "fumble_question"),
         options=get_text(lang, "fumble_options"),
         type=Poll.REGULAR,
         is_anonymous=False
     )
-    # Опрос не сохраняем в last_responses, т.к. он не редактируется
-
+    
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
     user_id = poll_answer.user.id
     lang = await get_language(user_id)
-    option_idx = poll_answer.option_ids[0]
     
     if not await check_rate_limit(user_id):
         await context.bot.send_message(chat_id=user_id, text=TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
@@ -952,17 +959,18 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     final_text = add_hooks(lang, result_text)
     
-    # Удаляем предыдущее контентное сообщение
+    # Удаляем предыдущее контентное сообщение (опрос уже удалён, но может быть что-то ещё)
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=user_id, message_id=last_responses[user_id])
         except:
             pass
     
+    # Отправляем результат
     msg = await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
     last_responses[user_id] = msg.message_id
     await check_and_award_achievements(user_id, 'fumble', score)
-    
+        
 async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1197,9 +1205,13 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
-        return
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
     
     page = context.user_data.get('leaderboard_page', 0)
     limit = 5
@@ -1227,17 +1239,59 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("◀️ Previous", callback_data="lb_prev"))
+            nav_buttons.append(InlineKeyboardButton("◀️ " + get_button_text(lang, "prev"), callback_data="lb_prev"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton("Next ▶️", callback_data="lb_next"))
-        nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu"))
+            nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "next") + " ▶️", callback_data="lb_next"))
+        nav_buttons.append(InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu"))
         reply_markup = InlineKeyboardMarkup([nav_buttons]) if nav_buttons else None
         
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        
+        # Редактируем меню
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=final_text,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.HTML
+                )
+            except:
+                pass
+        else:
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=final_text,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML
+            )
+            menu_message_ids[user_id] = msg.message_id
     else:
-        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-
+        empty_text = get_text(lang, "leaderboard_empty")
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        ])
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=empty_text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except:
+                pass
+        else:
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=empty_text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            menu_message_ids[user_id] = msg.message_id
+            
 async def lb_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['leaderboard_page'] = context.user_data.get('leaderboard_page', 0) + 1
     await leaderboard(update, context)
