@@ -32,6 +32,9 @@ TEXTS = {
             "back": "↩️ BACK",
             "prev": "◀️ Prev",    # EN
             "next": "Next ▶️",
+            "fumble_why": "🤡 Why did you do it?",
+            "fumble_reasons": ["Panic", "Greed", "Friend's advice", "Just dumb"],
+            "cancel_btn": "❌ Cancel",
             
         },
         "ignore_text": [
@@ -658,6 +661,9 @@ TEXTS = {
             "back": "↩️ НАЗАД",
             "prev": "◀️ Назад",   # RU
             "next": "Вперёд ▶️",
+            "fumble_why": "🤡 Почему ты это сделал?",
+            "fumble_reasons": ["Паника", "Жадность", "Совет друга", "Просто тупанул"],
+            "cancel_btn": "❌ Отмена",
             
         },
         "ignore_text": [
