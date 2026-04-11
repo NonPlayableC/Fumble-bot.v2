@@ -73,6 +73,7 @@ MAX_STORAGE = 1000
 last_responses = {}
 menu_message_ids = {}
 user_request_times = {}
+user_fumble_state = {}  # {user_id: {"step": 1, "answers": []}}
 
 STICKERS = {"regular": [], "gif": []}
 MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
@@ -862,14 +863,11 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_and_award_achievements(user_id, 'signal')
     
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Точка входа для фамбла: пробуем умный, иначе ручной опрос"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    
-    logging.info(f"FUMBLE: user {user_id} started")
     
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
@@ -878,84 +876,38 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update_streak(user_id)
     await update_quest_progress(user_id, 'fumble_count', 1)
     
-    # Удаляем предыдущее контентное сообщение
+    # Удаляем предыдущий контент
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            logging.info(f"FUMBLE: deleted previous content message for user {user_id}")
-        except Exception as e:
-            logging.warning(f"FUMBLE: failed to delete previous content: {e}")
+            del last_responses[user_id]
+        except:
+            pass
     
-    # Проверяем наличие кошелька
     wallet = await get_wallet_address(user_id)
-    logging.info(f"FUMBLE: user {user_id} wallet = {wallet}")
-    
-    # === ЕСЛИ КОШЕЛЁК ЕСТЬ, ПРОБУЕМ УМНЫЙ ФАМБЛ ===
     if wallet:
         tx = await get_last_swap_transaction(wallet)
-        logging.info(f"FUMBLE: user {user_id} tx found = {tx is not None}")
         if tx:
-            try:
-                await update_quest_progress(user_id, 'smart_fumble', 1)
-                score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
-                await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
-                
-                result_text = get_text(lang, "fumble_smart_result", score, reason)
-                balance = await get_wallet_balance(wallet)
-                if balance:
-                    amt, val = balance
-                    result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
-                
-                final_text = add_hooks(lang, result_text)
-                msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
-                last_responses[user_id] = msg.message_id
-                await check_and_award_achievements(user_id, 'fumble', score)
-                logging.info(f"FUMBLE: smart fumble done for user {user_id}, score={score}")
-                return
-            except Exception as e:
-                logging.error(f"FUMBLE: smart fumble failed for user {user_id}: {e}", exc_info=True)
-                # При ошибке умного фамбла переходим к ручному опросу
-                await query.message.reply_text("⚠️ Не удалось проанализировать транзакцию. Давай вручную.")
+            # Умный фамбл (как раньше)
+            await update_quest_progress(user_id, 'smart_fumble', 1)
+            score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
+            await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
+            result_text = get_text(lang, "fumble_smart_result", score, reason)
+            balance = await get_wallet_balance(wallet)
+            if balance:
+                amt, val = balance
+                result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
+            final_text = add_hooks(lang, result_text)
+            msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+            last_responses[user_id] = msg.message_id
+            await check_and_award_achievements(user_id, 'fumble', score)
+            return
         else:
-            # Кошелёк есть, но транзакций нет
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
-            logging.info(f"FUMBLE: no transactions for user {user_id}, falling back to manual")
-
-    # === РУЧНОЙ ОПРОС (ЕСЛИ КОШЕЛЬКА НЕТ ИЛИ ТРАНЗАКЦИЙ НЕТ) ===
-    logging.info(f"FUMBLE: starting manual poll for user {user_id}")
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     
-    # Отправляем "Анализирую..."
-    pause_text = get_text(lang, "fumble_pause")
-    pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
-    last_responses[user_id] = pause_msg.message_id
-    logging.info(f"FUMBLE: pause message sent for user {user_id}")
-    
-    await asyncio.sleep(1.5)
-    
-    # Удаляем паузу
-    try:
-        await pause_msg.delete()
-        logging.info(f"FUMBLE: pause message deleted for user {user_id}")
-    except Exception as e:
-        logging.warning(f"FUMBLE: failed to delete pause: {e}")
-    
-    # Отправляем опрос
-    try:
-        poll_msg = await context.bot.send_poll(
-            chat_id=chat_id,
-            question=get_text(lang, "fumble_question"),
-            options=get_text(lang, "fumble_options"),
-            type=Poll.REGULAR,
-            is_anonymous=False
-        )
-        logging.info(f"FUMBLE: poll sent successfully for user {user_id}")
-    except Exception as e:
-        logging.error(f"FUMBLE: poll send failed for user {user_id}: {e}", exc_info=True)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text="❌ Не удалось создать опрос. Попробуй позже."
-        )
+    # === РУЧНОЙ ФАМБЛ ЧЕРЕЗ INLINE-МЕНЮ ===
+    user_fumble_state[user_id] = {"step": 1, "answers": []}
+    await show_fumble_step(user_id, chat_id, lang, context)
     
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
@@ -996,6 +948,100 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     msg = await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
     last_responses[user_id] = msg.message_id
     await check_and_award_achievements(user_id, 'fumble', score)
+    
+async def show_fumble_step(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
+    state = user_fumble_state.get(user_id)
+    if not state:
+        return
+    step = state["step"]
+    
+    if step == 1:
+        question = get_text(lang, "fumble_question")
+        options = get_text(lang, "fumble_options")[:4]  # первые 4 варианта
+    elif step == 2:
+        question = get_text(lang, "fumble_why")  # нужно добавить в texts.py
+        options = get_text(lang, "fumble_reasons")  # нужно добавить
+    else:
+        # Завершение, подсчёт счёта
+        score = calculate_manual_score(state["answers"])
+        await save_fumble(user_id, score, type='manual')
+        await update_quest_progress(user_id, 'fumble_count', 1)
+        result_text = get_text(lang, f"fumble_result_{'high' if score>=7 else 'medium' if score>=4 else 'low'}", score)
+        wallet = await get_wallet_address(user_id)
+        if wallet:
+            balance = await get_wallet_balance(wallet)
+            if balance:
+                amt, val = balance
+                result_text += f"\n\n💰 BINTY: {amt:.4f} (${val:.2f})"
+        final_text = add_hooks(lang, result_text)
+        msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+        last_responses[user_id] = msg.message_id
+        await check_and_award_achievements(user_id, 'fumble', score)
+        del user_fumble_state[user_id]
+        await update_menu(chat_id, user_id, context, lang)  # возвращаем главное меню
+        return
+    
+    # Формируем кнопки вариантов
+    buttons = []
+    for i, opt in enumerate(options):
+        buttons.append([InlineKeyboardButton(opt, callback_data=f"fumble_answer_{step}_{i}")])
+    buttons.append([InlineKeyboardButton("❌ " + get_text(lang, "cancel_btn"), callback_data="fumble_cancel")])
+    
+    keyboard = InlineKeyboardMarkup(buttons)
+    
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=question,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logging.error(f"Fumble step edit failed: {e}")
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=question,
+            reply_markup=keyboard,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
+        
+async def fumble_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    data = query.data  # fumble_answer_1_2
+    parts = data.split("_")
+    step = int(parts[2])
+    answer_idx = int(parts[3])
+    
+    state = user_fumble_state.get(user_id)
+    if not state or state["step"] != step:
+        await query.answer("Сессия устарела. Начни заново.")
+        return
+    
+    state["answers"].append(answer_idx)
+    state["step"] += 1
+    user_fumble_state[user_id] = state
+    
+    await show_fumble_step(user_id, query.message.chat_id, lang, context)
+
+async def fumble_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer("Отменено")
+    
+    if user_id in user_fumble_state:
+        del user_fumble_state[user_id]
+    await update_menu(chat_id, user_id, context, lang)
         
 async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2079,6 +2125,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "referrals": await referrals(update, context)
     elif data == "signal_history": await signal_history(update, context)
     elif data == "fumble_history": await fumble_history(update, context)
+    elif data.startswith("fumble_answer_"): await fumble_answer(update, context)
+    elif data == "fumble_cancel": await fumble_cancel(update, context)
     elif data == "back_to_menu": await back_to_menu(update, context)
     elif data == "cancel_balance": await cancel_balance(update, context)
     elif data == "confirm_subscribe": await confirm_subscribe(update, context)
