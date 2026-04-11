@@ -1070,15 +1070,10 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cancel_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
     ])
-    
-    await delete_previous_and_send(
-        chat_id, user_id,
-        get_text(lang, "balance_prompt"),
-        context,
-        reply_markup=cancel_kb
-    )
+    text = get_text(lang, "balance_prompt")
+    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=cancel_kb)
     context.user_data['awaiting_balance'] = True
-
+    
 async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1086,8 +1081,10 @@ async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     context.user_data['awaiting_balance'] = False
     await query.answer()
-    await query.message.reply_text(get_text(lang, "balance_cancelled"))
-
+    
+    text = get_text(lang, "balance_cancelled")
+    await delete_previous_and_send(chat_id, user_id, text, context)
+    
 async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = await get_language(user_id)
@@ -1739,32 +1736,45 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    logging.info(f"MY_STATS called by user {user_id}")
+    logging.info(f"MY_STATS: called by user {user_id}")
     
     try:
-        # Удаляем контентное сообщение, если есть
+        # Удаляем контентное сообщение
         if user_id in last_responses:
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
                 del last_responses[user_id]
             except Exception as e:
-                logging.warning(f"MY_STATS: failed to delete content message: {e}")
+                logging.warning(f"MY_STATS: failed to delete content: {e}")
 
+        # Получаем данные
         stats = await get_user_stats(user_id)
-        streak_info = await get_streak_info(user_id)
-        position = await get_user_position(user_id)
+        logging.info(f"MY_STATS: stats = {stats}")
         
-        level = get_level(stats["average"]) if stats else 1
+        streak_info = await get_streak_info(user_id)
+        logging.info(f"MY_STATS: streak_info = {streak_info}")
+        
+        position = await get_user_position(user_id)
+        logging.info(f"MY_STATS: position = {position}")
+        
+        # Безопасно извлекаем значения
+        avg_score = stats.get("average", 0) if stats else 0
+        total_fumbles = stats.get("count", 0) if stats else 0
+        total_score = stats.get("total_score", 0) if stats else 0
+        signal_clicks = stats.get("signal_clicks", 0) if stats else 0
+        
+        level = get_level(avg_score)
         level_name = get_level_name(level, lang)
         
+        # Формируем текст
         text = get_text(
             lang, "my_stats",
             level=level,
             level_name=level_name,
-            total_fumbles=stats["count"] if stats else 0,
-            avg_score=stats["average"] if stats else 0,
-            total_signals=stats.get("signal_clicks", 0) if stats else 0,
-            streak=streak_info["current_streak"],
+            total_fumbles=total_fumbles,
+            avg_score=avg_score,
+            total_signals=signal_clicks,
+            streak=streak_info.get("current_streak", 0) if streak_info else 0,
             referrals=await get_referrals_count(user_id),
             position=position
         )
@@ -1783,8 +1793,8 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 logging.info(f"MY_STATS: menu edited for user {user_id}")
             except Exception as e:
-                logging.error(f"MY_STATS: failed to edit menu: {e}")
-                # Пробуем отправить новое сообщение
+                logging.error(f"MY_STATS: edit failed: {e}")
+                # Отправляем новое сообщение
                 msg = await context.bot.send_message(
                     chat_id=chat_id,
                     text=text,
@@ -1800,12 +1810,12 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode=ParseMode.MARKDOWN
             )
             menu_message_ids[user_id] = msg.message_id
-            logging.info(f"MY_STATS: new menu message sent for user {user_id}")
+            logging.info(f"MY_STATS: new menu sent for user {user_id}")
             
     except Exception as e:
-        logging.error(f"MY_STATS crashed for user {user_id}: {e}")
+        logging.error(f"MY_STATS crashed for user {user_id}: {e}", exc_info=True)
         await query.message.reply_text(f"❌ Ошибка при загрузке статистики. Попробуй позже.")
-                
+                        
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
