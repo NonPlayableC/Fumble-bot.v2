@@ -1837,7 +1837,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
     elif data == "close_message":
-    await query.message.delete()
+        await query.message.delete()
     
 # ... конец button_callback ...
 
