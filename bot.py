@@ -869,6 +869,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    logging.info(f"FUMBLE: user {user_id} started")
+    
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
@@ -880,56 +882,80 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-        except:
-            pass
+            logging.info(f"FUMBLE: deleted previous content message for user {user_id}")
+        except Exception as e:
+            logging.warning(f"FUMBLE: failed to delete previous content: {e}")
     
     # Проверяем наличие кошелька
     wallet = await get_wallet_address(user_id)
+    logging.info(f"FUMBLE: user {user_id} wallet = {wallet}")
     
     # === ЕСЛИ КОШЕЛЁК ЕСТЬ, ПРОБУЕМ УМНЫЙ ФАМБЛ ===
     if wallet:
         tx = await get_last_swap_transaction(wallet)
+        logging.info(f"FUMBLE: user {user_id} tx found = {tx is not None}")
         if tx:
-            await update_quest_progress(user_id, 'smart_fumble', 1)
-            score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
-            await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
-            
-            result_text = get_text(lang, "fumble_smart_result", score, reason)
-            balance = await get_wallet_balance(wallet)
-            if balance:
-                amt, val = balance
-                result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
-            
-            final_text = add_hooks(lang, result_text)
-            msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
-            last_responses[user_id] = msg.message_id
-            await check_and_award_achievements(user_id, 'fumble', score)
-            return
+            try:
+                await update_quest_progress(user_id, 'smart_fumble', 1)
+                score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
+                await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
+                
+                result_text = get_text(lang, "fumble_smart_result", score, reason)
+                balance = await get_wallet_balance(wallet)
+                if balance:
+                    amt, val = balance
+                    result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
+                
+                final_text = add_hooks(lang, result_text)
+                msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+                last_responses[user_id] = msg.message_id
+                await check_and_award_achievements(user_id, 'fumble', score)
+                logging.info(f"FUMBLE: smart fumble done for user {user_id}, score={score}")
+                return
+            except Exception as e:
+                logging.error(f"FUMBLE: smart fumble failed for user {user_id}: {e}", exc_info=True)
+                # При ошибке умного фамбла переходим к ручному опросу
+                await query.message.reply_text("⚠️ Не удалось проанализировать транзакцию. Давай вручную.")
         else:
-            # Кошелёк есть, но транзакций нет — сообщаем и переходим к ручному
+            # Кошелёк есть, но транзакций нет
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
+            logging.info(f"FUMBLE: no transactions for user {user_id}, falling back to manual")
 
     # === РУЧНОЙ ОПРОС (ЕСЛИ КОШЕЛЬКА НЕТ ИЛИ ТРАНЗАКЦИЙ НЕТ) ===
+    logging.info(f"FUMBLE: starting manual poll for user {user_id}")
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     
     # Отправляем "Анализирую..."
     pause_text = get_text(lang, "fumble_pause")
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
     last_responses[user_id] = pause_msg.message_id
+    logging.info(f"FUMBLE: pause message sent for user {user_id}")
     
     await asyncio.sleep(1.5)
     
     # Удаляем паузу
-    await pause_msg.delete()
+    try:
+        await pause_msg.delete()
+        logging.info(f"FUMBLE: pause message deleted for user {user_id}")
+    except Exception as e:
+        logging.warning(f"FUMBLE: failed to delete pause: {e}")
     
     # Отправляем опрос
-    await context.bot.send_poll(
-        chat_id=chat_id,
-        question=get_text(lang, "fumble_question"),
-        options=get_text(lang, "fumble_options"),
-        type=Poll.REGULAR,
-        is_anonymous=False
-    )
+    try:
+        poll_msg = await context.bot.send_poll(
+            chat_id=chat_id,
+            question=get_text(lang, "fumble_question"),
+            options=get_text(lang, "fumble_options"),
+            type=Poll.REGULAR,
+            is_anonymous=False
+        )
+        logging.info(f"FUMBLE: poll sent successfully for user {user_id}")
+    except Exception as e:
+        logging.error(f"FUMBLE: poll send failed for user {user_id}: {e}", exc_info=True)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="❌ Не удалось создать опрос. Попробуй позже."
+        )
     
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
@@ -1408,8 +1434,22 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ " + get_text(lang, "close"), callback_data="close_message")]
     ])
     
-    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-            
+    await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    
+async def close_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    await query.answer()
+    
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    await query.message.delete()
+                
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1522,6 +1562,9 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    logging.info(f"REFERRALS: called by user {user_id}")
+    
+    # Удаляем контентное сообщение
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -1532,7 +1575,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = await get_referrals_count(user_id)
     link = f"https://t.me/BintyAgentBot?start=ref_{user_id}"
     
-    text = f"👥 **{TEXTS[lang].get('referrals_title', 'REFERRALS')}**\n\n"
+    text = f"👥 **{TEXTS[lang].get('referrals_title', 'РЕФЕРАЛЫ')}**\n\n"
     text += f"▫️ {get_text(lang, 'invited')}: **{count}**\n"
     text += f"▫️ {get_text(lang, 'your_link')}:\n`{link}`\n\n"
     text += get_text(lang, "referral_info")
@@ -1542,6 +1585,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
+    # Редактируем меню
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -1551,8 +1595,9 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode=ParseMode.MARKDOWN
             )
-        except:
-            pass
+            logging.info(f"REFERRALS: menu edited for user {user_id}")
+        except Exception as e:
+            logging.error(f"REFERRALS: edit failed: {e}")
     else:
         msg = await context.bot.send_message(
             chat_id=chat_id,
@@ -1561,7 +1606,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        logging.info(f"REFERRALS: new menu sent for user {user_id}")
 
 async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2040,6 +2085,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "confirm_unsubscribe": await confirm_unsubscribe(update, context)
     elif data == "cancel_subscribe": await cancel_action(update, context)
     elif data == "cancel_unsubscribe": await cancel_action(update, context)
+    elif data == "close_message": await close_message(update, context)
     elif data == "lb_next": await lb_next(update, context)
     elif data == "lb_prev": await lb_prev(update, context)
     elif data == "delete_wallet":
