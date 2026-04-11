@@ -711,21 +711,27 @@ async def delete_previous_and_send(chat_id: int, user_id: int, text: str,
                                    reply_markup=None, parse_mode=None,
                                    photo=None):
     global last_responses
+    
+    # Удаляем предыдущее контентное сообщение
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
         except Exception as e:
-            logging.error(f"Failed to delete message for {user_id}: {e}")
+            logging.error(f"Failed to delete content message for {user_id}: {e}")
+    
+    # Отправляем новое
     if photo:
         msg = await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=text,
                                            reply_markup=reply_markup, parse_mode=parse_mode)
     else:
         msg = await context.bot.send_message(chat_id=chat_id, text=text,
                                              reply_markup=reply_markup, parse_mode=parse_mode)
+    
+    # Сохраняем ID контентного сообщения
     last_responses[user_id] = msg.message_id
     clean_storage()
     return msg
-
+    
 async def send_with_pause(chat_id: int, user_id: int, first_text: str,
                           second_text: str, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=chat_id, text=first_text)
@@ -735,10 +741,18 @@ async def send_with_pause(chat_id: int, user_id: int, first_text: str,
     await delete_previous_and_send(chat_id, user_id, final_text, context)
 
 async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE, lang: str = None):
-    """Обновляет главное меню с актуальным статусом подписки"""
-    global menu_message_ids
+    """Обновляет главное меню, удаляя перед этим контентное сообщение"""
+    global menu_message_ids, last_responses
     if lang is None:
         lang = await get_language(user_id)
+    
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
     
     menu_text = TEXTS[lang].get("menu_title", "📋 BINTY Menu")
     menu_markup = await get_main_menu(user_id, lang)
@@ -769,7 +783,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 # ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -827,25 +841,27 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update_streak(user_id)
     await update_quest_progress(user_id, 'signal_count', 1)
     
-    # Отправляем первое сообщение "Думаю..."
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+        except:
+            pass
+    
     pause_text = get_text(lang, "signal_pause")
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
+    last_responses[user_id] = pause_msg.message_id
     
     await asyncio.sleep(3)
     
-    # Получаем сигнал
     signal_text = get_text(lang, "signal")
     final_signal = add_hooks(lang, signal_text)
-    
-    # Заменяем сообщение "Думаю..." на сигнал
     await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
     
-    # Сохраняем историю
     await save_signal_history(user_id, signal_text)
     await check_and_award_achievements(user_id, 'signal')
-
+    
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Точка входа для фамбла: пробуем умный, иначе опрос"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
@@ -859,16 +875,19 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update_streak(user_id)
     await update_quest_progress(user_id, 'fumble_count', 1)
     
-    # Проверяем кошелёк
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+        except:
+            pass
+    
     wallet = await get_wallet_address(user_id)
     
-    # Если кошелёк ЕСТЬ, пробуем умный фамбл
     if wallet:
         tx = await get_last_swap_transaction(wallet)
         if tx:
-            # Это умный фамбл
             await update_quest_progress(user_id, 'smart_fumble', 1)
-            
             score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
             await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
             
@@ -879,33 +898,30 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
             
             final_text = add_hooks(lang, result_text)
-            await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+            msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+            last_responses[user_id] = msg.message_id
             await check_and_award_achievements(user_id, 'fumble', score)
             return
         else:
-            # Кошелёк есть, но транзакций нет — сообщаем и переходим к ручному
             await query.message.reply_text(get_text(lang, "fumble_smart_no_tx"))
 
-    # Если кошелька НЕТ или нет транзакций — ручной опрос
+    # Ручной опрос
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    
-    # Отправляем сообщение "Анализирую..." и сохраняем его ID
     pause_text = get_text(lang, "fumble_pause")
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
+    last_responses[user_id] = pause_msg.message_id
     
     await asyncio.sleep(1.5)
-    
-    # Удаляем сообщение "Анализирую..."
     await pause_msg.delete()
     
-    # Отправляем опрос
-    await context.bot.send_poll(
+    poll_msg = await context.bot.send_poll(
         chat_id=chat_id,
         question=get_text(lang, "fumble_question"),
         options=get_text(lang, "fumble_options"),
         type=Poll.REGULAR,
         is_anonymous=False
     )
+    # Опрос не сохраняем в last_responses, т.к. он не редактируется
 
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
@@ -936,10 +952,17 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     final_text = add_hooks(lang, result_text)
     
-    # Отправляем результат и заменяем предыдущее сообщение
-    await delete_previous_and_send(user_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=user_id, message_id=last_responses[user_id])
+        except:
+            pass
+    
+    msg = await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
+    last_responses[user_id] = msg.message_id
     await check_and_award_achievements(user_id, 'fumble', score)
-
+    
 async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -967,7 +990,7 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chart = generate_portfolio_chart_fake()
         text = get_text(lang, "portfolio", 0, 0, 0)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
 
 # Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
 # language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
@@ -1002,8 +1025,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price_text = get_text(lang, "price_response", usd, emoji, change)
     
     final_text = add_hooks(lang, price_text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-        
+    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+            
 async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1023,8 +1046,8 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = get_text(lang, "holders", count)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-        
+        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+                
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1106,8 +1129,8 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = random.choice(MEMES)
     text = get_text(lang, "meme")
     final_text = add_hooks(lang, text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
-    
+    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+        
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1132,11 +1155,21 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_certificate_request(user_id)
         
         caption = TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame.")
-        await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
+        
+        # Удаляем предыдущее контентное сообщение
+        if user_id in last_responses:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            except:
+                pass
+        
+        # Отправляем фото
+        msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
+        last_responses[user_id] = msg.message_id
     except Exception as e:
         logging.error(f"Certificate error: {e}")
         await query.message.reply_text("Error generating certificate")
-
+        
 async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1203,8 +1236,7 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         final_text = add_hooks(lang, text)
         await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
     else:
-        await delete_previous_and_send(chat_id, user_id, get_text(lang, "leaderboard_empty"), context)
-
+        await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
 
 async def lb_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['leaderboard_page'] = context.user_data.get('leaderboard_page', 0) + 1
@@ -1311,7 +1343,6 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=kb
     )
 
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1326,8 +1357,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ " + get_text(lang, "close"), callback_data="close_message")]
     ])
     
-    await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-
+    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+            
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1335,7 +1366,7 @@ async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     await update_menu(chat_id, user_id, context, lang)
-    
+        
 async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1373,9 +1404,9 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")])
     keyboard.append([InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1421,8 +1452,8 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
     [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
 ]    
-    await query.edit_message_text(
-        text,
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
@@ -1439,12 +1470,17 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         lines = [f"{h.get('created_at', '')[:10]}: {h.get('signal_text', '')[:50]}..." for h in history]
         text = get_text(lang, "signal_history_text", "\n".join(lines))
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-        ])
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
     )
+    #await query.edit_message_text(
+        #text,
+        #reply_markup=InlineKeyboardMarkup([
+            #[InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+       #  ])
+  #  )
 
 
 async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1458,22 +1494,39 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         lines = [f"{h.get('created_at', '')[:10]}: Score {h.get('score', 0)}/10 ({h.get('type', 'manual')})" for h in history]
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-        ])
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
     )
 
 async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    await query.edit_message_text(
-        TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
-        reply_markup=get_game_center_menu(lang)
-    )
+    
+    # Удаляем контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
+                reply_markup=get_game_center_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
     
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает достижения в стиле игровой вкладки"""
@@ -1540,8 +1593,8 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
-    await query.edit_message_text(
-        text,
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
@@ -1586,9 +1639,9 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         position=position
     )
     
-    await query.edit_message_text(
-        text,
-        reply_markup=get_my_stats_menu(lang),
+    await delete_previous_and_send(
+        chat_id, user_id, text, context,
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
 
@@ -1836,9 +1889,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(user_id, lang_code)
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
-    elif data == "close_message":
-        await query.message.delete()
-    
+        elif data == "close_message":
+            user_id = query.from_user.id
+            chat_id = query.message.chat_id
+            if user_id in last_responses:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+                    del last_responses[user_id]
+                except:
+                    pass
+            await query.message.delete()
+            
 # ... конец button_callback ...
 
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
