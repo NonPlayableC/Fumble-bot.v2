@@ -79,6 +79,17 @@ async def delete_user(user_id: int) -> bool:
     except Exception as e:
         logging.error(f"Error deleting user {user_id}: {e}")
         return False
+        
+# ==================== МЕМЫ =======
+
+async def get_random_meme():
+    try:
+        res = supabase.table("memes").select("url").execute()
+        if res.data:
+            return random.choice(res.data)["url"]
+    except:
+        pass
+    return "https://i.imgflip.com/2kbnrp.jpg"  # fallback
 
 # ==================== ЯЗЫКИ ====================
 
