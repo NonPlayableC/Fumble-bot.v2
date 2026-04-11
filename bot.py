@@ -1484,26 +1484,102 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
 
-async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    lang = await get_language(user_id)
-    await query.answer()
-    stats = await get_user_stats(user_id)
-    if not stats:
-        await query.message.reply_text("No data yet. Do some fumbles first!")
-        return
-    level = get_level(stats["average"])
-    level_name = get_level_name(level, lang)
-    position = await get_user_position(user_id)
-    username = query.from_user.username or query.from_user.first_name
-    img = generate_certificate_of_shame(user_id, username, level_name,
-                                        stats["count"], stats["average"],
-                                        position, lang)
-    await log_certificate_request(user_id)
-    await context.bot.send_photo(chat_id=chat_id, photo=img,
-                                 caption=TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame. Frame it. Or burn it."))
+def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
+                                 total_fumbles: int, avg_score: float,
+                                 position: int, lang: str) -> BytesIO:
+    width, height = 800, 550
+    
+    # Градиентный фон (тёмно-синий → чёрный)
+    img = Image.new('RGB', (width, height), color='#0a0a1a')
+    draw = ImageDraw.Draw(img)
+    
+    # Золотая двойная рамка
+    draw.rectangle([15, 15, width-15, height-15], outline='#d4af37', width=3)
+    draw.rectangle([22, 22, width-22, height-22], outline='#d4af37', width=1)
+    
+    # Угловые узоры
+    corner_size = 40
+    for x, y in [(30, 30), (width-30, 30), (30, height-30), (width-30, height-30)]:
+        draw.ellipse([x-5, y-5, x+5, y+5], fill='#d4af37')
+    
+    # Шрифты
+    try:
+        font_title = ImageFont.truetype("impact.ttf", 42)
+        font_name = ImageFont.truetype("georgia.ttf", 28)
+        font_text = ImageFont.truetype("georgia.ttf", 20)
+        font_small = ImageFont.truetype("georgia.ttf", 16)
+    except:
+        font_title = ImageFont.load_default()
+        font_name = font_title
+        font_text = font_title
+        font_small = font_title
+    
+    # Заголовок
+    title = TEXTS[lang].get("certificate_title", "CERTIFICATE OF SHAME")
+    draw.text((width//2, 60), title, fill='#d4af37', font=font_title, anchor='mm')
+    
+    # Подзаголовок
+    draw.text((width//2, 105), "BINTY", fill='#ffffff', font=font_name, anchor='mm')
+    
+    # Линия-разделитель
+    draw.line([(100, 130), (width-100, 130)], fill='#d4af37', width=1)
+    
+    # Имя получателя
+    draw.text((width//2, 170), "This certificate is awarded to", fill='#aaaaaa', font=font_small, anchor='mm')
+    display_name = username or f"User {user_id}"
+    draw.text((width//2, 210), display_name, fill='#ffffff', font=font_name, anchor='mm')
+    
+    # Линия-разделитель
+    draw.line([(150, 240), (width-150, 240)], fill='#d4af37', width=1)
+    
+    # Статистика (две колонки)
+    y = 280
+    col1_x = 180
+    col2_x = 500
+    
+    # Левая колонка
+    draw.text((col1_x, y), f"Level:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 100, y), level_name, fill='#ffffff', font=font_text)
+    
+    draw.text((col1_x, y + 40), f"Total Fumbles:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 150, y + 40), str(total_fumbles), fill='#ffffff', font=font_text)
+    
+    # Правая колонка
+    draw.text((col2_x, y), f"Avg Score:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 120, y), f"{avg_score:.1f}", fill='#ffffff', font=font_text)
+    
+    draw.text((col2_x, y + 40), f"Position:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 120, y + 40), f"#{position}", fill='#ffffff', font=font_text)
+    
+    # Дата выдачи
+    y = 370
+    draw.text((width//2, y), f"Issued: {datetime.now().strftime('%Y-%m-%d')}", fill='#aaaaaa', font=font_small, anchor='mm')
+    
+    # QR-код (справа внизу)
+    qr = qrcode.QRCode(box_size=3, border=1)
+    qr.add_data(f"https://t.me/BintyAgentBot?start=ref_{user_id}")
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+    qr_img = qr_img.resize((100, 100))
+    img.paste(qr_img, (width-140, height-140))
+    
+    # Подпись под QR
+    draw.text((width-90, height-30), "Scan to join", fill='#888888', font=font_small, anchor='mm')
+    
+    # Нижняя подпись
+    draw.text((width//2, height-40), "BINTY — Financial Enemy #1", fill='#d4af37', font=font_small, anchor='mm')
+    
+    # Полупрозрачная печать по центру
+    stamp = Image.new('RGBA', (300, 100), (0, 0, 0, 0))
+    stamp_draw = ImageDraw.Draw(stamp)
+    stamp_draw.text((150, 50), "BINTY", fill=(212, 175, 55, 30), font=font_title, anchor='mm')
+    stamp = stamp.rotate(15, expand=True)
+    img.paste(stamp, (width//2 - stamp.width//2, height//2 - stamp.height//2), stamp)
+    
+    img_bytes = BytesIO()
+    img.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    return img_bytes
 
 async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1512,22 +1588,86 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     
     info = await get_streak_info(user_id)
+    active_days = set(info.get("active_days", []))
     
-    text = f"📅 **КАЛЕНДАРЬ СТРАДАНИЙ**\n"
-    text += f"▫️ Текущая серия: **{info['current_streak']}** дн.\n"
-    text += f"▫️ Рекорд: **{info['max_streak']}** дн.\n\n"
+    today = date.today()
     
-    # Последние 14 дней
-    text += "▫️ Последние 14 дней:\n"
-    for i in range(14):
-        day = (datetime.now() - timedelta(days=i)).date()
-        active = "🟢" if str(day) in info.get("active_days", []) else "⚫"
-        text += f"{active} {day.strftime('%d.%m')}\n"
+    # Находим начало месяца
+    first_day = today.replace(day=1)
+    # Находим первый понедельник перед началом месяца или сам первый день
+    start_date = first_day - timedelta(days=first_day.weekday())
+    
+    # Дни недели (сокращения)
+    weekdays = {
+        "en": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
+        "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+        "es": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"],
+        "zh": ["一", "二", "三", "四", "五", "六", "日"]
+    }
+    
+    days_header = weekdays.get(lang, weekdays["en"])
+    
+    # Заголовок календаря
+    month_names = {
+        "en": today.strftime("%B %Y"),
+        "ru": ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", 
+               "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"][today.month-1] + f" {today.year}",
+        "es": today.strftime("%B %Y"),
+        "zh": f"{today.year}年{today.month}月"
+    }
+    
+    month_title = month_names.get(lang, month_names["en"])
+    
+    text = f"📅 **{month_title}**\n\n"
+    
+    # Заголовок дней недели
+    text += "`"
+    for day in days_header:
+        text += f"{day} "
+    text += "`\n"
+    
+    # Сетка 4x7
+    current = start_date
+    for week in range(4):
+        text += "`"
+        for day in range(7):
+            current_str = current.isoformat()
+            
+            if current.month != today.month:
+                # Дни других месяцев — серые
+                text += "⚫ "
+            elif current_str in active_days:
+                # Активные дни — зелёные
+                if current == today:
+                    text += "🔥 "  # Сегодня и активный
+                else:
+                    text += "🟢 "
+            else:
+                # Неактивные дни текущего месяца
+                if current == today:
+                    text += "⭕ "  # Сегодня, но не активный
+                else:
+                    text += "⚫ "
+            
+            current += timedelta(days=1)
+        text += "`\n"
+    
+    # Легенда
+    text += "\n"
+    text += "🟢 " + get_text(lang, "active_day") + "  "
+    text += "⚫ " + get_text(lang, "inactive_day") + "  "
+    text += "🔥 " + get_text(lang, "today_active") + "  "
+    text += "⭕ " + get_text(lang, "today_inactive") + "\n"
+    
+    # Статистика
+    text += "\n"
+    text += f"▫️ {get_text(lang, 'current_streak')}: **{info['current_streak']}**\n"
+    text += f"▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**\n"
     
     keyboard = [
-    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-]
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+    ]
     
     await query.edit_message_text(
         text,
