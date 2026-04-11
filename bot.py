@@ -1406,37 +1406,75 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает достижения в стиле игровой вкладки"""
     query = update.callback_query
     user_id = query.from_user.id
     lang = await get_language(user_id)
     await query.answer()
     
+    # Получаем данные
     earned = await get_user_achievements(user_id)
     earned_keys = set([a["achievement_key"] for a in earned]) if earned else set()
-    
     all_achievements = await get_all_achievements(lang)
     
-    text = f"🏅 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
-    text += f"▫️ Получено: {len(earned_keys)}/{len(all_achievements)}\n\n"
+    # Группируем по категориям
+    categories = {
+        "fumble": {"icon": "🤡", "name": {"en": "Fumbles", "ru": "Фамблы", "es": "Fumbles", "zh": "失误"}},
+        "signal": {"icon": "📡", "name": {"en": "Signals", "ru": "Сигналы", "es": "Señales", "zh": "信号"}},
+        "streak": {"icon": "🔥", "name": {"en": "Streaks", "ru": "Серии", "es": "Rachas", "zh": "连续"}},
+        "wallet": {"icon": "💼", "name": {"en": "Wallet", "ru": "Кошелёк", "es": "Cartera", "zh": "钱包"}},
+        "social": {"icon": "👥", "name": {"en": "Social", "ru": "Соцсети", "es": "Social", "zh": "社交"}},
+        "special": {"icon": "🌟", "name": {"en": "Special", "ru": "Особые", "es": "Especial", "zh": "特殊"}}
+    }
     
-    for ach in all_achievements[:10]:
-        key = ach["achievement_key"]
-        icon = ach.get("icon", "🏅")
-        name = ach.get(f"name_{lang}", ach.get("name_en", key))
-        status = "✅" if key in earned_keys else "❌"
-        text += f"{icon} {status} {name}\n"
+    cat_achievements = {cat: [] for cat in categories}
+    for ach in all_achievements:
+        cat = get_category(ach["achievement_key"])
+        if cat in cat_achievements:
+            cat_achievements[cat].append(ach)
+    
+    # Собираем текст
+    total_earned = len(earned_keys)
+    total_all = len(all_achievements)
+    
+    text = f"🏆 **{TEXTS[lang].get('achievements_title', 'ACHIEVEMENTS')}**\n"
+    text += f"▫️ {get_text(lang, 'progress')}: {total_earned}/{total_all}\n\n"
+    
+    for cat, ach_list in cat_achievements.items():
+        if not ach_list:
+            continue
+        
+        cat_name = categories[cat]["name"].get(lang, cat)
+        cat_icon = categories[cat]["icon"]
+        
+        earned_in_cat = sum(1 for a in ach_list if a["achievement_key"] in earned_keys)
+        total_in_cat = len(ach_list)
+        
+        text += f"{cat_icon} **{cat_name}** ({earned_in_cat}/{total_in_cat})\n"
+        
+        for ach in ach_list[:8]:  # Показываем до 8 в категории
+            key = ach["achievement_key"]
+            is_earned = key in earned_keys
+            icon = ach.get("icon", "🏅")
+            name = ach.get(f"name_{lang}", ach.get("name_en", key))
+            
+            if is_earned:
+                text += f"  ✅ {icon} {name}\n"
+            else:
+                text += f"  🔒 {icon} {name}\n"
+        
+        text += "\n"
     
     keyboard = [
-    [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-    [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-]    
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+    ]
     
     await query.edit_message_text(
         text,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode=ParseMode.MARKDOWN
     )
-
 
 def get_category(key: str) -> str:
     """Определяет категорию ачивки по ключу"""
@@ -1446,7 +1484,7 @@ def get_category(key: str) -> str:
         return "signal"
     elif key in ["masochist", "godless"]:
         return "streak"
-    elif key in ["hell_holder", "crypto_archaeologist", "paranoid"]:
+    elif key in ["hell_holder", "crypto_archaeologist", "paranoid", "liquidity_sponsor"]:
         return "wallet"
     elif key in ["referral_baron"]:
         return "social"
