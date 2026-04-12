@@ -780,15 +780,19 @@ async def claim_quest_reward(user_id: int, user_quest_id: int) -> Dict:
 
 
 async def get_user_active_quests(user_id: int) -> List[Dict]:
-    """Возвращает активные квесты пользователя"""
+    """Возвращает активные (незавершённые или незаклеймленные) квесты пользователя"""
     try:
         now = datetime.now().isoformat()
-        res = supabase.table("user_quests").select("*, quests(*)").eq("user_id", user_id).eq("completed", False).lte("assigned_at", now).gte("expires_at", now).execute()
+        res = supabase.table("user_quests").select("*, quests(*)") \
+            .eq("user_id", user_id) \
+            .lte("assigned_at", now) \
+            .gte("expires_at", now) \
+            .or_("completed.eq.false,reward_claimed.eq.false") \
+            .execute()
         return res.data if res.data else []
     except Exception as e:
         logging.error(f"Error getting active quests: {e}")
         return []
-
 
 async def get_user_completed_quests(user_id: int, limit: int = 5) -> List[Dict]:
     """Возвращает выполненные квесты пользователя"""
