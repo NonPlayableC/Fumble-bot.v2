@@ -1873,13 +1873,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
-    await check_and_award_achievements(user_id, 'streak')
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
     
-    logging.info(f"REFERRALS: called by user {user_id}")
-    
-    # Удаляем контентное сообщение
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -1890,39 +1884,41 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = await get_referrals_count(user_id)
     link = f"https://t.me/BintyAgentBot?start=ref_{user_id}"
     
-    text = f"👥 **{TEXTS[lang].get('referrals_title', 'РЕФЕРАЛЫ')}**\n\n"
-    text += f"▫️ {get_text(lang, 'invited')}: **{count}**\n"
-    text += f"▫️ {get_text(lang, 'your_link')}:\n`{link}`\n\n"
-    text += get_text(lang, "referral_info")
+    title = TEXTS[lang].get('referrals_title', 'РЕФЕРАЛЫ')
+    invited = get_text(lang, 'invited')
+    your_link = get_text(lang, 'your_link')
+    info = get_text(lang, "referral_info")
     
-    keyboard = [
+    text = f"👥 <b>{title}</b>\n\n"
+    text += f"▫️ {invited}: <b>{count}</b>\n"
+    text += f"▫️ {your_link}:\n<code>{link}</code>\n\n"
+    text += info
+    
+    keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
         [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-    ]
+    ])
     
-    # Редактируем меню
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=menu_message_ids[user_id],
                 text=text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode=ParseMode.MARKDOWN
+                reply_markup=keyboard,
+                parse_mode=ParseMode.HTML
             )
-            logging.info(f"REFERRALS: menu edited for user {user_id}")
         except Exception as e:
             logging.error(f"REFERRALS: edit failed: {e}")
     else:
         msg = await context.bot.send_message(
             chat_id=chat_id,
             text=text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode=ParseMode.MARKDOWN
+            reply_markup=keyboard,
+            parse_mode=ParseMode.HTML
         )
         menu_message_ids[user_id] = msg.message_id
-        logging.info(f"REFERRALS: new menu sent for user {user_id}")
-
+        
 async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
