@@ -1144,7 +1144,7 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     lang = await get_language(user_id)
     await query.answer()
     
-    data = query.data  # сначала получаем data
+    data = query.data
     logging.info(f"FUMBLE_ANSWER: user={user_id}, data={data}")
     
     state = user_fumble_state.get(user_id)
@@ -1152,20 +1152,25 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.answer("Сессия устарела. Начни заново.", show_alert=True)
         return
     
+    # Если квиз уже завершён, игнорируем нажатия
+    if state.get("finished"):
+        await query.answer("Квиз уже завершён", show_alert=True)
+        return
+    
     parts = data.split("_")
     if len(parts) < 4:
-        logging.error(f"FUMBLE_ANSWER: invalid data format: {data}")
         await query.answer("Ошибка. Попробуй снова.", show_alert=True)
         return
     
     q_index = int(parts[2])
     weight = parts[3]
     
+    # Проверяем, что это ответ на текущий вопрос
     if q_index != state["q_index"]:
         await query.answer("Этот вопрос уже неактуален", show_alert=True)
         return
     
-    # Начисляем баллы по весу
+    # Начисляем баллы
     if weight == "high":
         score_add = random.randint(8, 10)
     elif weight == "medium":
@@ -1176,10 +1181,15 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     state["score"] += score_add
     state["answers"].append({"q_index": q_index, "weight": weight, "score": score_add})
     state["q_index"] += 1
+    
+    # Если это был последний вопрос, помечаем как завершённый
+    if state["q_index"] >= len(state["questions"]):
+        state["finished"] = True
+    
     user_fumble_state[user_id] = state
     
     await show_fumble_question(user_id, query.message.chat_id, lang, context)
-             
+                 
 async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
     state = user_fumble_state.get(user_id)
     if not state:
@@ -1192,7 +1202,7 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     
     await save_fumble(user_id, avg_score, type='manual')
     await update_quest_progress(user_id, 'fumble_count', 1)
-    await check_and_award_achievements(user_id, 'fumble', avg_score)   # ← ЗДЕСЬ ИСПРАВЛЕНО
+    await check_and_award_achievements(user_id, 'fumble', avg_score)
     
     if avg_score >= 7:
         result_text = get_text(lang, "fumble_result_high", avg_score)
@@ -1210,7 +1220,6 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     
     final_text = add_hooks(lang, result_text)
     
-    # Удаляем предыдущий контент
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -1221,8 +1230,11 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     last_responses[user_id] = msg.message_id
     
     del user_fumble_state[user_id]
+    
+    # Даём секунду, чтобы результат точно отобразился перед возвратом в меню
+    await asyncio.sleep(1)
     await update_menu(chat_id, user_id, context, lang)
-        
+            
 async def fumble_cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
