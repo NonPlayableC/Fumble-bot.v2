@@ -1186,17 +1186,13 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
         return
     
     total_score = state["score"]
-    # Усредняем, чтобы не выходить за 0-10
     avg_score = min(10, max(0, int(total_score / len(state["answers"]))) if state["answers"] else 5)
     avg_score += random.randint(-1, 1)
     avg_score = min(10, max(0, avg_score))
     
     await save_fumble(user_id, avg_score, type='manual')
     await update_quest_progress(user_id, 'fumble_count', 1)
-    await check_and_award_achievements(user_id, 'fumble', score)
-# Обновляем титул в чате (если бот в группе)
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
+    await check_and_award_achievements(user_id, 'fumble', avg_score)   # ← ЗДЕСЬ ИСПРАВЛЕНО
     
     if avg_score >= 7:
         result_text = get_text(lang, "fumble_result_high", avg_score)
@@ -1225,10 +1221,8 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     last_responses[user_id] = msg.message_id
     
     del user_fumble_state[user_id]
-    # Даём секунду, чтобы сообщение точно дошло
-    await asyncio.sleep(1)
     await update_menu(chat_id, user_id, context, lang)
-    
+        
 async def fumble_cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
