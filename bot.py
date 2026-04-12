@@ -1144,14 +1144,13 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     lang = await get_language(user_id)
     await query.answer()
     
-    logging.info(f"FUMBLE_ANSWER: user={user_id}, data={data}")
-    
     state = user_fumble_state.get(user_id)
     if not state:
         await query.answer("Сессия устарела. Начни заново.", show_alert=True)
         return
     
     data = query.data  # fumble_answer_0_high
+    logging.info(f"FUMBLE_ANSWER: user={user_id}, data={data}")
     parts = data.split("_")
     q_index = int(parts[2])
     weight = parts[3]
