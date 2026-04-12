@@ -260,6 +260,20 @@ async def get_user_position(user_id: int) -> int:
     except Exception as e:
         logging.error(f"Error getting user position: {e}")
         return 999
+        
+async def get_weekly_leaderboard(start_date: str, end_date: str, limit: int = 5):
+    """
+    Возвращает топ пользователей по сумме очков фамбла за указанный период.
+    start_date и end_date в формате 'YYYY-MM-DD'
+    """
+    supabase = init_supabase()
+    # Предполагаем таблицу fumbles с полями: user_id, score, created_at
+    res = supabase.rpc('get_weekly_leaderboard', {
+        'start_date': start_date,
+        'end_date': end_date,
+        'limit_num': limit
+    }).execute()
+    return res.data if res.data else []
 
 # ==================== СТРИК (КАЛЕНДАРЬ СТРАДАНИЙ) ====================
 
