@@ -800,7 +800,7 @@ async def get_user_completed_quests(user_id: int, limit: int = 5) -> List[Dict]:
 
 
 async def notify_quest_completed(user_id: int, quest: Dict):
-    """Отправляет уведомление о выполнении квеста"""
+    """Отправляет уведомление о выполнении квеста и удаляет его через 5 секунд"""
     try:
         lang = await get_language(user_id)
         name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))
@@ -810,10 +810,12 @@ async def notify_quest_completed(user_id: int, quest: Dict):
         if bot_token:
             bot = telegram.Bot(token=bot_token)
             text = f"🎯 **Quest completed!**\n\n{name}\n\nClaim your reward in Game Center → Quests!"
-            await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+            msg = await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+            await asyncio.sleep(5)
+            await bot.delete_message(chat_id=user_id, message_id=msg.message_id)
     except Exception as e:
         logging.error(f"Error notifying quest completion: {e}")
-    
+            
 # ==================== ВОПРОСЫ ДЛЯ РУЧНОГО ФАМБЛА ====================
 
 async def fetch_fumble_questions() -> List[Dict]:
@@ -969,9 +971,8 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                     bot = telegram.Bot(token=bot_token)
                     text = get_text(lang, "achievement_unlocked").format(name, ach["reward"])
                     try:
-                        await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+                        msg = await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+                        await asyncio.sleep(5)
+                        await bot.delete_message(chat_id=user_id, message_id=msg.message_id)
                     except:
                         pass
-                        
-    except Exception as e:
-        logging.error(f"Error in check_and_award_achievements: {e}")
