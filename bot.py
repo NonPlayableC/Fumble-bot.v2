@@ -873,6 +873,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await update_streak(user_id)
+    
     await update_quest_progress(user_id, 'signal_count', 1)
     
     # Удаляем предыдущее контентное сообщение
@@ -1220,6 +1221,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+        
+    await update_streak(user_id)
     
     await check_and_award_achievements(user_id, 'price')
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
@@ -1250,6 +1253,8 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+        
+    await update_streak(user_id)
     
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     count = await get_holders()
@@ -1271,6 +1276,8 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+    
+    await update_streak(user_id)
     
     cancel_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
@@ -1334,6 +1341,8 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+        
+    await update_streak(user_id)
     
     await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
     url = random.choice(MEMES)
@@ -1352,6 +1361,8 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not stats or stats.get("count", 0) == 0:
         await query.message.reply_text(get_text(lang, "no_fumbles_yet"))
         return
+    
+    await update_streak(user_id)
     
     level = get_level(stats["average"])
     level_name = get_level_name(level, lang)
@@ -1391,6 +1402,8 @@ async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     
+    await update_streak(user_id)
+    
     pack = random.choice(["regular", "gif"])
     sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
     if sticker_id:
@@ -1406,6 +1419,8 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -1514,6 +1529,8 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+        
+    await update_streak(user_id)
     
     if await is_subscribed(user_id):
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "already_subscribed"), context)
@@ -1550,6 +1567,8 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
+        
+    await update_streak(user_id)
     
     if not await is_subscribed(user_id):
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "not_subscribed"), context)
@@ -1586,6 +1605,8 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
+    await update_streak(user_id)
+    
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
@@ -1605,6 +1626,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     help_text = get_text(lang, "help")
     final_text = add_hooks(lang, help_text)
@@ -1643,6 +1666,8 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     if user_id in last_responses:
         try:
@@ -1741,6 +1766,8 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    await update_streak(user_id)
+    
     logging.info(f"REFERRALS: called by user {user_id}")
     
     # Удаляем контентное сообщение
@@ -1793,6 +1820,9 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
+    
     history = await get_signal_history(user_id, limit=10)
     if not history:
         text = get_text(lang, "no_history")
@@ -1814,6 +1844,9 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
+    
     history = await get_fumble_history(user_id, limit=10)
     if not history:
         text = get_text(lang, "no_history")
@@ -1835,6 +1868,8 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     # Удаляем контентное сообщение
     if user_id in last_responses:
@@ -1863,6 +1898,8 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -1960,6 +1997,8 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     logging.info(f"MY_STATS: called by user {user_id}")
     
@@ -2144,6 +2183,8 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
     
     if user_id in last_responses:
         try:
