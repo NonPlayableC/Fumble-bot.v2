@@ -1650,18 +1650,14 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def confirm_subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Подтверждает подписку и обновляет меню"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await subscribe_user(user_id)
-    text = get_text(lang, "subscribe")
-    final_text = add_hooks(lang, text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context)
-    # Обновляем меню, чтобы кнопка сменилась на UNSUBSCRIBE
+    await query.answer(get_text(lang, "subscribe"), show_alert=True)
+    await query.message.delete()
     await update_menu(chat_id, user_id, context, lang)
-
 
 async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показывает подтверждение отписки"""
@@ -1689,20 +1685,16 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "unsubscribe_confirm"), context, reply_markup=confirm_kb)
 
-
 async def confirm_unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Подтверждает отписку и обновляет меню"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await unsubscribe_user(user_id)
-    text = get_text(lang, "unsubscribe")
-    final_text = add_hooks(lang, text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context)
-    # Обновляем меню, чтобы кнопка сменилась на SUBSCRIBE
+    await query.answer(get_text(lang, "unsubscribe"), show_alert=True)
+    await query.message.delete()
     await update_menu(chat_id, user_id, context, lang)
-
+    
 async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
