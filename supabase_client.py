@@ -971,8 +971,8 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                     bot = telegram.Bot(token=bot_token)
                     text = get_text(lang, "achievement_unlocked").format(name, ach["reward"])
                     try:
-                        msg = await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
+                        msg = await bot.send_message(...)
                         await asyncio.sleep(5)
-                        await bot.delete_message(chat_id=user_id, message_id=msg.message_id)
+                        await bot.delete_message(...)
                     except:
                         pass
