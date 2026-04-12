@@ -542,7 +542,7 @@ TEXTS = {
             "📜 {} — the day your shame was documented.\n\nCertificate is real. Unlike your profits.",
             "📜 Certificate from {}\n\nShow it to mom. She'll cry. From laughter.",
             "📜 {} — this date goes down in history.\n\nYour history of failures."
-        ]
+        ],
         "titles": {
             "top1": "👑 King of Bottom",
             "top2": "💀 Bottom Watcher",
@@ -1210,7 +1210,7 @@ TEXTS = {
             "📜 {} — день, когда твой позор был задокументирован.\n\nСертификат настоящий. В отличие от твоей прибыли.",
             "📜 Сертификат от {}\n\nПокажи маме. Она заплачет. От смеха.",
             "📜 {} — эта дата войдёт в историю.\n\nИсторию твоих провалов."
-        ]
+        ],
         "titles": {
             "top1": "👑 Король дна",
             "top2": "💀 Смотрящий дна",
@@ -1887,7 +1887,7 @@ TEXTS = {
             "📜 {} — el día que tu vergüenza fue documentada.\n\nCertificado real. A diferencia de tus ganancias.",
             "📜 Certificado del {}\n\nMuéstraselo a mamá. Llorará. De risa.",
             "📜 {} — esta fecha pasa a la historia.\n\nTu historia de fracasos."
-        ]
+        ],
         "sticker": [
             "Aquí tienes un sticker. Es lo único aquí que no perderá valor. 🎨",
             "🎨 Sticker. Al menos esto no pierde valor. A diferencia de tu cartera.",
@@ -2546,7 +2546,7 @@ TEXTS = {
             "📜 {} — 你的耻辱被记录的日子。\n\n证书是真的。跟你的利润不一样。",
             "📜 {} 的证书\n\n给妈妈看。她会哭。笑哭的。",
             "📜 {} — 这个日期载入史册。\n\n你的失败史。"
-        ]
+        ],
         "titles": {
             "top1": "👑 底部之王",
             "top2": "💀 底部看守",
