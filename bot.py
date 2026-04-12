@@ -925,25 +925,53 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     wallet = await get_wallet_address(user_id)
     if not wallet:
-        # Нет кошелька — предлагаем ручной опрос в Game Center
+        # Нет кошелька — редактируем меню
         text = get_text(lang, "no_wallet_for_smart_fumble")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎮 " + get_button_text(lang, "game_center"), callback_data="game_center")],
+            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
             [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
-        msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-        last_responses[user_id] = msg.message_id
+        # Редактируем меню
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=text,
+                    reply_markup=kb,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except:
+                msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+                menu_message_ids[user_id] = msg.message_id
+        else:
+            msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            menu_message_ids[user_id] = msg.message_id
         return
     
     tx = await get_last_swap_transaction(wallet)
     if not tx:
+        # Кошелёк есть, но транзакций нет — редактируем меню
         text = get_text(lang, "no_tx_for_smart_fumble")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎮 " + get_button_text(lang, "game_center"), callback_data="game_center")],
+            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
             [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
-        msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-        last_responses[user_id] = msg.message_id
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=text,
+                    reply_markup=kb,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except:
+                msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+                menu_message_ids[user_id] = msg.message_id
+        else:
+            msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            menu_message_ids[user_id] = msg.message_id
         return
     
     # Пытаемся выполнить умный фамбл
@@ -969,11 +997,24 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"SMART FUMBLE: failed for user {user_id}: {e}", exc_info=True)
         text = get_text(lang, "smart_fumble_error")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎮 " + get_button_text(lang, "game_center"), callback_data="game_center")],
+            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
             [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
-        msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-        last_responses[user_id] = msg.message_id
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=text,
+                    reply_markup=kb,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except:
+                msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+                menu_message_ids[user_id] = msg.message_id
+        else:
+            msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            menu_message_ids[user_id] = msg.message_id
         
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
