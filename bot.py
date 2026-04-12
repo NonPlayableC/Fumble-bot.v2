@@ -1470,9 +1470,12 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
         
         # Отправляем фото
-        msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📤 " + get_text(lang, "share_certificate"), switch_inline_query=f"cert_{user_id}")]
+        ])
+        msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption, reply_markup=keyboard)
         last_responses[user_id] = msg.message_id
-    except Exception as e:
+            except Exception as e:
         logging.error(f"Certificate error: {e}")
         await query.message.reply_text("Error generating certificate")
         
