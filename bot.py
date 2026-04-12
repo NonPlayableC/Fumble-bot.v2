@@ -47,7 +47,8 @@ from supabase_client import (
     send_auto_signals,
     get_all_achievements,
     check_signal_fumble_bonus,
-    fetch_fumble_questions
+    fetch_fumble_questions,
+    send_weekly_leaderboard
 )
     
 from texts import TEXTS, get_text, add_hooks
@@ -2598,16 +2599,15 @@ def main():
         job_queue.run_repeating(lambda ctx: asyncio.create_task(send_auto_signals()), interval=21600, first=10)
         # Сигнал дня раз в 24 часа
         job_queue.run_repeating(lambda ctx: asyncio.create_task(send_signal_of_the_day()), interval=86400, first=60)
+        # Еженедельный лидерборд: каждое воскресенье в 23:59 UTC
+        job_queue.run_daily(
+            lambda ctx: asyncio.create_task(send_weekly_leaderboard()),
+            time=datetime.time(hour=23, minute=59, tzinfo=datetime.timezone.utc),
+            days=(6,)
+        )
     # =========================================
-    
-    #port = int(os.environ.get("PORT", 8000))
-    #threading.Thread(target=run_health_server, daemon=True).start()
-    #logging.info(f"Health check server started on port {port}")
     
     logging.info("🚀 BINTY Agent starting with polling...")
     print("🚀 Bot is starting...")
     app.run_polling()
-    print("❌ Bot stopped!")  # Это не должно появиться если бот работает
-
-if __name__ == "__main__":
-    main()
+    print("❌ Bot stopped!")
