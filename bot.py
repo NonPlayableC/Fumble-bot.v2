@@ -2600,9 +2600,10 @@ def main():
         # Сигнал дня раз в 24 часа
         job_queue.run_repeating(lambda ctx: asyncio.create_task(send_signal_of_the_day()), interval=86400, first=60)
         # Еженедельный лидерборд: каждое воскресенье в 23:59 UTC
+        # Еженедельный лидерборд: воскресенье 23:59 UTC
         job_queue.run_daily(
             lambda ctx: asyncio.create_task(send_weekly_leaderboard()),
-            time=datetime.time(hour=23, minute=59, tzinfo=datetime.timezone.utc),
+            time=datetime.time(hour=23, minute=59),
             days=(6,)
         )
     # =========================================
