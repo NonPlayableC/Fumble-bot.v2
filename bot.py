@@ -962,9 +962,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
         last_responses[user_id] = msg.message_id
         await check_and_award_achievements(user_id, 'fumble', score)
-# Обновляем титул в чате (если бот в группе)
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
+        if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+            await update_user_title(user_id, update.effective_chat.id, context)
         logging.info(f"SMART FUMBLE: success for user {user_id}, score={score}")
     except Exception as e:
         logging.error(f"SMART FUMBLE: failed for user {user_id}: {e}", exc_info=True)
