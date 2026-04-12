@@ -894,7 +894,7 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
         "king_of_bottom": {
             "name": {"en": "King of the Bottom", "ru": "Король дна", "es": "Rey del Fondo", "zh": "底部之王"},
             "reward": 5,
-            "condition": lambda stats, user: False  # проверяется отдельно в leaderboard
+            "condition": lambda stats, user: False
         },
         "signal_legend": {
             "name": {"en": "Signal Legend", "ru": "Легенда сигналов", "es": "Leyenda de Señales", "zh": "信号传奇"},
@@ -914,7 +914,7 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
         "legend_of_shame": {
             "name": {"en": "Legend of Shame", "ru": "Легенда позора", "es": "Leyenda de la Vergüenza", "zh": "耻辱传奇"},
             "reward": 20,
-            "condition": lambda stats, user: False  # проверяется отдельно
+            "condition": lambda stats, user: False
         },
     }
     
@@ -925,7 +925,6 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
         
         stats = await get_user_stats(user_id) or {}
         
-        # Обновляем счётчики
         updates = {}
         if action == "signal":
             updates["signal_clicks"] = user.get("signal_clicks", 0) + 1
@@ -943,7 +942,6 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
             for k, v in updates.items():
                 user[k] = v
         
-        # Проверяем ачивки
         earned = await get_user_achievements(user_id)
         earned_keys = [a["achievement_key"] for a in earned]
         
@@ -953,15 +951,13 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
             if ach["condition"](stats, user):
                 await save_achievement(user_id, key)
                 
-                # Начисляем баллы
-                stats = supabase.table("user_stats").select("total_score").eq("user_id", user_id).execute()
-                if stats.data:
-                    current = stats.data[0].get("total_score", 0)
+                stats_row = supabase.table("user_stats").select("total_score").eq("user_id", user_id).execute()
+                if stats_row.data:
+                    current = stats_row.data[0].get("total_score", 0)
                     supabase.table("user_stats").update({"total_score": current + ach["reward"]}).eq("user_id", user_id).execute()
                 else:
                     supabase.table("user_stats").insert({"user_id": user_id, "total_score": ach["reward"]}).execute()
                 
-                # Отправляем уведомление
                 lang = await get_language(user_id)
                 name = ach["name"].get(lang, ach["name"]["en"])
                 
@@ -971,8 +967,11 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                     bot = telegram.Bot(token=bot_token)
                     text = get_text(lang, "achievement_unlocked").format(name, ach["reward"])
                     try:
-                        msg = await bot.send_message(...)
+                        msg = await bot.send_message(chat_id=user_id, text=text, parse_mode="Markdown")
                         await asyncio.sleep(5)
-                        await bot.delete_message(...)
-                    except:
+                        await bot.delete_message(chat_id=user_id, message_id=msg.message_id)
+                    except Exception:
                         pass
+                        
+    except Exception as e:
+        logging.error(f"Error in check_and_award_achievements: {e}")
