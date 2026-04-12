@@ -33,6 +33,7 @@ TEXTS = {
             "prev": "◀️ Prev",    # EN
             "next": "Next ▶️",
             "manual_fumble": "🧠 Degen Confession",
+            "share_certificate": "📤 Share Certificate",
             
         },
         "ignore_text": [
@@ -677,6 +678,7 @@ TEXTS = {
             "prev": "◀️ Назад",   # RU
             "next": "Вперёд ▶️",
             "manual_fumble": "🧠 Исповедь дегена",
+            "share_certificate": "📤 Поделиться",
             
         },
         "ignore_text": [
@@ -1322,6 +1324,7 @@ TEXTS = {
             "prev": "◀️ Atrás",   # ES
             "next": "Siguiente ▶️",
             "manual_fumble": "🧠 Confesión Degenerada",
+            "share_certificate": "📤 Compartir",
             
         },
         "ignore_text": [
@@ -1966,6 +1969,7 @@ TEXTS = {
             "prev": "◀️ 上一页",  # ZH
             "next": "下一页 ▶️",
             "manual_fumble": "🧠 赌狗忏悔",
+            "share_certificate": "📤 分享",
             
         },
         "ignore_text": [
