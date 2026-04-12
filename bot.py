@@ -2603,7 +2603,7 @@ def main():
         # Еженедельный лидерборд: воскресенье 23:59 UTC
         job_queue.run_daily(
             lambda ctx: asyncio.create_task(send_weekly_leaderboard()),
-            time=datetime.time(hour=23, minute=59),
+            time=time(hour=23, minute=59),
             days=(6,)
         )
     # =========================================
