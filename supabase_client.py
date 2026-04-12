@@ -274,6 +274,58 @@ async def get_weekly_leaderboard(start_date: str, end_date: str, limit: int = 5)
         'limit_num': limit
     }).execute()
     return res.data if res.data else []
+    
+async def send_weekly_leaderboard():
+    """Отправляет еженедельный топ-5 лузеров в общий чат за прошедшую неделю"""
+    import telegram
+    from datetime import datetime, timedelta
+
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("CHAT_ID")
+
+    if not bot_token or not chat_id:
+        logging.warning("Weekly leaderboard: TELEGRAM_BOT_TOKEN or CHAT_ID not set")
+        return
+
+    bot = telegram.Bot(token=bot_token)
+
+    # Определяем даты прошедшей недели (пн - вс)
+    today = datetime.utcnow().date()
+    # Находим последнее воскресенье
+    days_since_sunday = today.weekday() + 1  # пн=0, вс=6
+    last_sunday = today - timedelta(days=days_since_sunday if days_since_sunday < 7 else 0)
+    last_monday = last_sunday - timedelta(days=6)
+
+    start_date = last_monday.isoformat()
+    end_date = last_sunday.isoformat()
+
+    try:
+        top_users = await get_weekly_leaderboard(start_date, end_date, limit=5)
+
+        if not top_users:
+            text = f"📉 *WEEKLY LOSERS ({start_date} — {end_date})*\n\nПока никто не страдал на этой неделе. Будьте первыми! 🦝"
+        else:
+            text = f"📉 *WEEKLY TOP-5 LOSERS*\n_{start_date} — {end_date}_\n\n"
+            medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+
+            for i, row in enumerate(top_users):
+                uid = row['user_id']
+                fumbles = row['fumble_count']
+                score = row['total_score']
+
+                user_info = await get_user(uid)
+                name = user_info.get('username') or user_info.get('first_name') or f"User {uid}" if user_info else f"User {uid}"
+
+                medal = medals[i] if i < len(medals) else f"{i+1}."
+                text += f"{medal} *{name}* — {fumbles} фамблов, {score} очков\n"
+
+            text += "\n_Страдайте больше на следующей неделе!_ 💀"
+
+        await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+        logging.info(f"Weekly leaderboard sent for week {start_date} - {end_date}")
+
+    except Exception as e:
+        logging.error(f"Failed to send weekly leaderboard: {e}")
 
 # ==================== СТРИК (КАЛЕНДАРЬ СТРАДАНИЙ) ====================
 
