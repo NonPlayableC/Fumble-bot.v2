@@ -751,18 +751,14 @@ async def claim_quest_reward(user_id: int, user_quest_id: int) -> Dict:
         reward_points = quest.get("reward_points", 0)
         reward_binty = quest.get("reward_binty", 0)
         
-        # Начисляем баллы
+        # Начисляем баллы (прямой запрос к RPC, результат получаем отдельно)
         if reward_points > 0:
-            supabase.table("user_stats").update({
-                "total_score": supabase.rpc('increment_score', {'p_user_id': user_id, 'p_amount': reward_points})
-            }).eq("user_id", user_id).execute()
+            score_res = supabase.rpc('increment_score', {'p_user_id': user_id, 'p_amount': reward_points}).execute()
+            # RPC уже выполнен, обновлять таблицу не нужно (функция сама обновляет)
         
         # Начисляем BINTY
         if reward_binty > 0:
-            supabase.table("user_balances").upsert({
-                "user_id": user_id,
-                "amount": supabase.rpc('increment_balance', {'p_user_id': user_id, 'p_amount': reward_binty})
-            }).execute()
+            balance_res = supabase.rpc('increment_balance', {'p_user_id': user_id, 'p_amount': reward_binty}).execute()
         
         # Отмечаем награду как полученную
         supabase.table("user_quests").update({"reward_claimed": True}).eq("id", user_quest_id).execute()
@@ -777,7 +773,6 @@ async def claim_quest_reward(user_id: int, user_quest_id: int) -> Dict:
     except Exception as e:
         logging.error(f"Error claiming quest reward: {e}")
         return {"success": False, "error": str(e)}
-
 
 async def get_user_active_quests(user_id: int) -> List[Dict]:
     """Возвращает активные (незавершённые или незаклеймленные) квесты пользователя"""
