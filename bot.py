@@ -1144,14 +1144,20 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     lang = await get_language(user_id)
     await query.answer()
     
+    data = query.data  # сначала получаем data
+    logging.info(f"FUMBLE_ANSWER: user={user_id}, data={data}")
+    
     state = user_fumble_state.get(user_id)
     if not state:
         await query.answer("Сессия устарела. Начни заново.", show_alert=True)
         return
     
-    data = query.data  # fumble_answer_0_high
-    logging.info(f"FUMBLE_ANSWER: user={user_id}, data={data}")
     parts = data.split("_")
+    if len(parts) < 4:
+        logging.error(f"FUMBLE_ANSWER: invalid data format: {data}")
+        await query.answer("Ошибка. Попробуй снова.", show_alert=True)
+        return
+    
     q_index = int(parts[2])
     weight = parts[3]
     
@@ -1173,7 +1179,7 @@ async def fumble_answer_handler(update: Update, context: ContextTypes.DEFAULT_TY
     user_fumble_state[user_id] = state
     
     await show_fumble_question(user_id, query.message.chat_id, lang, context)
-         
+             
 async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
     state = user_fumble_state.get(user_id)
     if not state:
