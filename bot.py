@@ -1470,7 +1470,7 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
         
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📤 " + get_text(lang, "share_certificate"), switch_inline_query=f"cert_{user_id}")]
+            [InlineKeyboardButton("📤 " + get_text(lang, "share_certificate"), callback_data="share_cert")]
         ])
         msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption, reply_markup=keyboard)
         last_responses[user_id] = msg.message_id
@@ -1498,6 +1498,27 @@ async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = get_text(lang, "certificate_view", date_str)
     
     await context.bot.send_photo(chat_id=chat_id, photo=cert["file_id"], caption=text, parse_mode=ParseMode.MARKDOWN)
+    
+async def share_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    certificates = await get_user_certificates(user_id)
+    if not certificates:
+        await query.answer(get_text(lang, "no_certificates")[0], show_alert=True)
+        return
+    
+    cert = certificates[0]
+    text = get_text(lang, "certificate_share", query.from_user.username or query.from_user.first_name)
+    
+    await context.bot.send_photo(
+        chat_id=query.message.chat_id,
+        photo=cert["file_id"],
+        caption=text,
+        parse_mode=ParseMode.MARKDOWN
+    )
                                 
 async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2583,6 +2604,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update_menu(chat_id, user_id, context, lang_code)
     elif data == "my_certificates": await my_certificates(update, context)
     elif data.startswith("view_cert_"): await view_certificate(update, context)
+    elif data == "share_cert":
+    await share_certificate(update, context)
         
 # ... конец button_callback ...
 
