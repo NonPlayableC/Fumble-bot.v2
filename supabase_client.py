@@ -394,27 +394,28 @@ async def get_signal_of_the_day() -> str:
     return "Buy high, sell low. You know the drill. 💀"
 
 async def send_signal_of_the_day():
-    """Отправляет сигнал дня всем подписчикам"""
-    from texts import get_text, add_hooks
+    """Отправляет сигнал дня в общий чат"""
     import telegram
+    from texts import get_text, add_hooks
     
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not bot_token:
+    chat_id = os.getenv("CHAT_ID")
+    
+    if not bot_token or not chat_id:
+        logging.warning("Signal of the day: TELEGRAM_BOT_TOKEN or CHAT_ID not set")
         return
     
     bot = telegram.Bot(token=bot_token)
-    subscribers = await get_all_subscribed_users()
     signal_text = await get_signal_of_the_day()
     
-    for user_id in subscribers:
-        try:
-            lang = await get_language(user_id)
-            text = f"📡 **Signal of the Day**\n\n{signal_text}\n\n*Sent to all subscribers. Suffer together.*"
-            final_text = add_hooks(lang, text)
-            await bot.send_message(chat_id=user_id, text=final_text, parse_mode="Markdown")
-        except:
-            pass
-
+    try:
+        # Используем английский язык для общего чата (или можно задать фиксированный)
+        text = f"📡 **Signal of the Day**\n\n{signal_text}\n\n*Sent to all sufferers. Good luck.* 🦝"
+        await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
+        logging.info("Signal of the day sent to chat")
+    except Exception as e:
+        logging.error(f"Failed to send signal of the day: {e}")
+        
 async def send_auto_signals():
     """Отправляет авто-сигналы всем подписчикам (каждые 6 часов)"""
     import telegram
