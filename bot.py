@@ -47,14 +47,15 @@ from supabase_client import (
     send_auto_signals,
     get_all_achievements,
     check_signal_fumble_bonus,
-    fetch_fumble_questions,
-    cached_fumble_questions = []
+    fetch_fumble_questions
 )
     
 from texts import TEXTS, get_text, add_hooks
 from twitter_poster import start_scheduler  # опционально
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+cached_fumble_questions = []
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
