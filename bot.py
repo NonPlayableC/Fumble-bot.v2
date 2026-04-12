@@ -1823,6 +1823,14 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update_streak(user_id)
     
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     history = await get_signal_history(user_id, limit=10)
     if not history:
         text = get_text(lang, "no_history")
@@ -1830,13 +1838,30 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines = [f"{h.get('created_at', '')[:10]}: {h.get('signal_text', '')[:50]}..." for h in history]
         text = get_text(lang, "signal_history_text", "\n".join(lines))
     
-    keyboard = [[InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]]
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]
+    ])
     
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logging.error(f"Signal history edit failed: {e}")
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
 
 async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1847,6 +1872,14 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update_streak(user_id)
     
+    # Удаляем контентное сообщение, если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     history = await get_fumble_history(user_id, limit=10)
     if not history:
         text = get_text(lang, "no_history")
@@ -1854,13 +1887,30 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines = [f"{h.get('created_at', '')[:10]}: Score {h.get('score', 0)}/10 ({h.get('type', 'manual')})" for h in history]
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
     
-    keyboard = [[InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]]
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]
+    ])
     
-    await delete_previous_and_send(
-        chat_id, user_id, text, context,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode=ParseMode.MARKDOWN
-    )
+    # Редактируем меню
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except Exception as e:
+            logging.error(f"Fumble history edit failed: {e}")
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
     
 async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
