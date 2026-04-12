@@ -958,6 +958,9 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
         last_responses[user_id] = msg.message_id
         await check_and_award_achievements(user_id, 'fumble', score)
+# Обновляем титул в чате (если бот в группе)
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
         logging.info(f"SMART FUMBLE: success for user {user_id}, score={score}")
     except Exception as e:
         logging.error(f"SMART FUMBLE: failed for user {user_id}: {e}", exc_info=True)
@@ -1008,6 +1011,9 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     msg = await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
     last_responses[user_id] = msg.message_id
     await check_and_award_achievements(user_id, 'fumble', score)
+# Обновляем титул в чате (если бот в группе)
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
   
 async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1134,7 +1140,10 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     
     await save_fumble(user_id, avg_score, type='manual')
     await update_quest_progress(user_id, 'fumble_count', 1)
-    await check_and_award_achievements(user_id, 'fumble', avg_score)
+    await check_and_award_achievements(user_id, 'fumble', score)
+# Обновляем титул в чате (если бот в группе)
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     if avg_score >= 7:
         result_text = get_text(lang, "fumble_result_high", avg_score)
@@ -1600,6 +1609,51 @@ async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     await delete_previous_and_send(chat_id, user_id, get_text(lang, "action_cancelled"), context)
+    
+async def update_user_title(user_id: int, chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+    """Обновляет титул пользователя в чате на основе его достижений"""
+    try:
+        lang = await get_language(user_id)
+        titles = TEXTS[lang].get("titles")
+        if not titles:
+            return
+        
+        stats = await get_user_stats(user_id)
+        streak_info = await get_streak_info(user_id)
+        position = await get_user_position(user_id)
+        
+        title = None
+        
+        if position == 1:
+            title = titles.get("top1")
+        elif position == 2:
+            title = titles.get("top2")
+        elif position == 3:
+            title = titles.get("top3")
+        elif streak_info and streak_info.get("current_streak", 0) >= 30:
+            title = titles.get("streak30")
+        elif streak_info and streak_info.get("current_streak", 0) >= 7:
+            title = titles.get("streak7")
+        elif stats and stats.get("count", 0) >= 100:
+            title = titles.get("fumble100")
+        elif stats and stats.get("count", 0) >= 50:
+            title = titles.get("fumble50")
+        elif stats and stats.get("count", 0) >= 10:
+            title = titles.get("fumble10")
+        
+        if title:
+            await context.bot.promote_chat_member(
+                chat_id=chat_id,
+                user_id=user_id,
+                can_manage_chat=False
+            )
+            await context.bot.set_chat_administrator_custom_title(
+                chat_id=chat_id,
+                user_id=user_id,
+                custom_title=title
+            )
+    except Exception as e:
+        logging.error(f"Failed to update title for user {user_id}: {e}")
 
 async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
