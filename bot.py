@@ -134,6 +134,7 @@ def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
          InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
+        [InlineKeyboardButton("📜 " + get_text(lang, "my_certificates"), callback_data="my_certificates")],
         [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
@@ -1462,23 +1463,42 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         caption = TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame.")
         
-        # Удаляем предыдущее контентное сообщение
         if user_id in last_responses:
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
             except:
                 pass
         
-        # Отправляем фото
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📤 " + get_text(lang, "share_certificate"), switch_inline_query=f"cert_{user_id}")]
         ])
         msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption, reply_markup=keyboard)
         last_responses[user_id] = msg.message_id
-            except Exception as e:
+        await save_certificate(user_id, msg.photo[-1].file_id)
+    except Exception as e:
         logging.error(f"Certificate error: {e}")
         await query.message.reply_text("Error generating certificate")
         
+async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    cert_id = int(query.data.replace("view_cert_", ""))
+    certificates = await get_user_certificates(user_id)
+    
+    cert = next((c for c in certificates if c["id"] == cert_id), None)
+    if not cert:
+        await query.answer("Сертификат не найден", show_alert=True)
+        return
+    
+    date_str = cert["created_at"][:10]
+    text = get_text(lang, "certificate_view", date_str)
+    
+    await context.bot.send_photo(chat_id=chat_id, photo=cert["file_id"], caption=text, parse_mode=ParseMode.MARKDOWN)
+                                
 async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2561,6 +2581,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(user_id, lang_code)
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
+    elif data == "my_certificates": await my_certificates(update, context)
+    elif data.startswith("view_cert_"): await view_certificate(update, context)
         
 # ... конец button_callback ...
 
