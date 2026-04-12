@@ -1092,6 +1092,8 @@ async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: C
     state = user_fumble_state.get(user_id)
     if not state:
         return
+        
+    logging.info(f"FUMBLE_FINISH: user={user_id}, answers={len(state['answers'])}")
     
     questions = state["questions"]
     q_index = state["q_index"]
