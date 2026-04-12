@@ -587,99 +587,101 @@ def generate_portfolio_chart_real(history, current_amount, current_value):
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
-    width, height = 800, 550
-    
-    # Градиентный фон (тёмно-синий → чёрный)
-    img = Image.new('RGB', (width, height), color='#0a0a1a')
+    # Высокое разрешение
+    width, height = 1200, 800
+    img = Image.new('RGB', (width, height), color='#0a0f1a')
     draw = ImageDraw.Draw(img)
-    
-    # Золотая двойная рамка
-    draw.rectangle([15, 15, width-15, height-15], outline='#d4af37', width=3)
-    draw.rectangle([22, 22, width-22, height-22], outline='#d4af37', width=1)
+
+    # Градиентный фон (тёмно-синий → чёрный)
+    for y in range(height):
+        r = int(10 + (y / height) * 20)
+        g = int(15 + (y / height) * 25)
+        b = int(26 + (y / height) * 30)
+        draw.rectangle([(0, y), (width, y)], fill=(r, g, b))
+
+    # Золотая двойная рамка с орнаментом
+    draw.rectangle([30, 30, width-30, height-30], outline='#d4af37', width=6)
+    draw.rectangle([42, 42, width-42, height-42], outline='#d4af37', width=2)
     
     # Угловые узоры
-    corner_size = 40
-    for x, y in [(30, 30), (width-30, 30), (30, height-30), (width-30, height-30)]:
-        draw.ellipse([x-5, y-5, x+5, y+5], fill='#d4af37')
-    
-    # Шрифты
+    for x, y in [(50, 50), (width-50, 50), (50, height-50), (width-50, height-50)]:
+        draw.ellipse([x-10, y-10, x+10, y+10], fill='#d4af37')
+        draw.ellipse([x-6, y-6, x+6, y+6], fill='#0a0f1a')
+
+    # Шрифты (используем стандартные, но с увеличенным размером)
     try:
-        font_title = ImageFont.truetype("impact.ttf", 42)
-        font_name = ImageFont.truetype("georgia.ttf", 28)
-        font_text = ImageFont.truetype("georgia.ttf", 20)
-        font_small = ImageFont.truetype("georgia.ttf", 16)
+        font_title = ImageFont.truetype("arial.ttf", 72)
+        font_name = ImageFont.truetype("arial.ttf", 48)
+        font_text = ImageFont.truetype("arial.ttf", 32)
+        font_small = ImageFont.truetype("arial.ttf", 24)
     except:
         font_title = ImageFont.load_default()
-        font_name = font_title
-        font_text = font_title
-        font_small = font_title
-    
+        font_name = ImageFont.load_default()
+        font_text = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+
     # Заголовок
     title = TEXTS[lang].get("certificate_title", "CERTIFICATE OF SHAME")
-    draw.text((width//2, 60), title, fill='#d4af37', font=font_title, anchor='mm')
-    
-    # Подзаголовок
-    draw.text((width//2, 105), "BINTY", fill='#ffffff', font=font_name, anchor='mm')
-    
+    draw.text((width//2, 100), title, fill='#d4af37', font=font_title, anchor='mm')
+    draw.text((width//2, 170), "BINTY", fill='#ffffff', font=font_name, anchor='mm')
+
     # Линия-разделитель
-    draw.line([(100, 130), (width-100, 130)], fill='#d4af37', width=1)
-    
+    draw.line([(150, 210), (width-150, 210)], fill='#d4af37', width=3)
+
     # Имя получателя
-    draw.text((width//2, 170), "This certificate is awarded to", fill='#aaaaaa', font=font_small, anchor='mm')
+    draw.text((width//2, 280), "This certificate is awarded to", fill='#aaaaaa', font=font_small, anchor='mm')
     display_name = username or f"User {user_id}"
-    draw.text((width//2, 210), display_name, fill='#ffffff', font=font_name, anchor='mm')
-    
-    # Линия-разделитель
-    draw.line([(150, 240), (width-150, 240)], fill='#d4af37', width=1)
-    
+    draw.text((width//2, 350), display_name, fill='#ffffff', font=font_name, anchor='mm')
+
+    draw.line([(200, 400), (width-200, 400)], fill='#d4af37', width=2)
+
     # Статистика (две колонки)
-    y = 280
-    col1_x = 180
-    col2_x = 500
-    
-    # Левая колонка
-    draw.text((col1_x, y), f"Level:", fill='#d4af37', font=font_text)
-    draw.text((col1_x + 100, y), level_name, fill='#ffffff', font=font_text)
-    
-    draw.text((col1_x, y + 40), f"Total Fumbles:", fill='#d4af37', font=font_text)
-    draw.text((col1_x + 150, y + 40), str(total_fumbles), fill='#ffffff', font=font_text)
-    
-    # Правая колонка
-    draw.text((col2_x, y), f"Avg Score:", fill='#d4af37', font=font_text)
-    draw.text((col2_x + 120, y), f"{avg_score:.1f}", fill='#ffffff', font=font_text)
-    
-    draw.text((col2_x, y + 40), f"Position:", fill='#d4af37', font=font_text)
-    draw.text((col2_x + 120, y + 40), f"#{position}", fill='#ffffff', font=font_text)
-    
+    y = 470
+    col1_x = 250
+    col2_x = 700
+
+    draw.text((col1_x, y), "Level:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 150, y), level_name, fill='#ffffff', font=font_text)
+
+    draw.text((col1_x, y + 60), "Total Fumbles:", fill='#d4af37', font=font_text)
+    draw.text((col1_x + 250, y + 60), str(total_fumbles), fill='#ffffff', font=font_text)
+
+    draw.text((col2_x, y), "Avg Score:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 180, y), f"{avg_score:.1f}", fill='#ffffff', font=font_text)
+
+    draw.text((col2_x, y + 60), "Position:", fill='#d4af37', font=font_text)
+    draw.text((col2_x + 180, y + 60), f"#{position}", fill='#ffffff', font=font_text)
+
     # Дата выдачи
-    y = 370
+    y = 620
     draw.text((width//2, y), f"Issued: {datetime.now().strftime('%Y-%m-%d')}", fill='#aaaaaa', font=font_small, anchor='mm')
-    
+
     # QR-код (справа внизу)
-    qr = qrcode.QRCode(box_size=3, border=1)
+    qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(f"https://t.me/BintyAgentBot?start=ref_{user_id}")
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    qr_img = qr_img.resize((100, 100))
-    img.paste(qr_img, (width-140, height-140))
-    
-    # Подпись под QR
-    draw.text((width-90, height-30), "Scan to join", fill='#888888', font=font_small, anchor='mm')
-    
+    qr_img = qr_img.resize((180, 180))
+    img.paste(qr_img, (width-250, height-250))
+
+    draw.text((width-160, height-60), "Scan to join", fill='#888888', font=font_small, anchor='mm')
+
     # Нижняя подпись
-    draw.text((width//2, height-40), "BINTY — Financial Enemy #1", fill='#d4af37', font=font_small, anchor='mm')
-    
-    # Полупрозрачная печать по центру
-    stamp = Image.new('RGBA', (300, 100), (0, 0, 0, 0))
-    stamp_draw = ImageDraw.Draw(stamp)
-    stamp_draw.text((150, 50), "BINTY", fill=(212, 175, 55, 30), font=font_title, anchor='mm')
-    stamp = stamp.rotate(15, expand=True)
-    img.paste(stamp, (width//2 - stamp.width//2, height//2 - stamp.height//2), stamp)
-    
+    draw.text((width//2, height-60), "BINTY — Financial Enemy #1", fill='#d4af37', font=font_small, anchor='mm')
+
+    # Печать (из файла Untitled.png)
+    try:
+        seal = Image.open("Untitled.png").convert("RGBA")
+        seal = seal.resize((200, 200))
+        img.paste(seal, (width//2 - 100, 480), seal)
+    except:
+        pass  # если файл не найден — просто без печати
+
     img_bytes = BytesIO()
     img.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     return img_bytes
+
     
     # ==================== УРОВНИ ====================
 LEVELS = {
