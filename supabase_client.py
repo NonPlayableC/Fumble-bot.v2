@@ -668,6 +668,22 @@ async def log_certificate_request(user_id: int) -> bool:
     except Exception as e:
         logging.error(f"Error logging certificate request: {e}")
         return False
+        
+async def save_certificate(user_id: int, file_id: str) -> bool:
+    try:
+        supabase.table("certificates").insert({"user_id": user_id, "file_id": file_id}).execute()
+        return True
+    except Exception as e:
+        logging.error(f"Error saving certificate for {user_id}: {e}")
+        return False
+
+async def get_user_certificates(user_id: int) -> List[Dict]:
+    try:
+        res = supabase.table("certificates").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        logging.error(f"Error getting certificates for {user_id}: {e}")
+        return []
 
 # ==================== АЧИВКИ (ПРОВЕРКА И ВЫДАЧА) ====================
 
