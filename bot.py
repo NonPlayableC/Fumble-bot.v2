@@ -47,7 +47,8 @@ from supabase_client import (
     send_auto_signals,
     get_all_achievements,
     check_signal_fumble_bonus,
-    fetch_fumble_questions
+    fetch_fumble_questions,
+    cached_fumble_questions = []
 )
     
 from texts import TEXTS, get_text, add_hooks
@@ -894,8 +895,10 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
     
     await save_signal_history(user_id, signal_text)
-    await check_and_award_achievements(user_id, 'signal')
-    
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
+        
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Умный фамбл: анализ реальной транзакции через Helius/Solscan"""
     query = update.callback_query
@@ -1026,24 +1029,24 @@ async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     
-    questions = await fetch_fumble_questions()
-    if not questions:
+    global cached_fumble_questions
+    if not cached_fumble_questions:
         await query.message.reply_text("❌ Вопросы не загружены. Попробуй позже.")
         return
     
-    # Перемешиваем вопросы для разнообразия
     import random
+    questions = cached_fumble_questions.copy()
     random.shuffle(questions)
     
     user_fumble_state[user_id] = {
         "q_index": 0,
         "answers": [],
         "score": 0,
-        "questions": questions[:5]  # берём 5 случайных вопросов из 40
+        "questions": questions[:5]
     }
     
     await show_fumble_question(user_id, chat_id, lang, context)
-  
+      
 async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
     state = user_fumble_state.get(user_id)
     if not state:
@@ -1172,7 +1175,9 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
     last_responses[user_id] = msg.message_id
     
     del user_fumble_state[user_id]
-    await update_menu(chat_id, user_id, context, lang)            
+    # Даём секунду, чтобы сообщение точно дошло
+    await asyncio.sleep(1)
+    await update_menu(chat_id, user_id, context, lang)
     
 async def fumble_cancel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1264,6 +1269,10 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
+
     
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     count = await get_holders()
@@ -1287,6 +1296,9 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     cancel_kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
@@ -1332,7 +1344,6 @@ async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_T
             final_text = add_hooks(lang, text)
             await update.message.reply_text(final_text, parse_mode=ParseMode.MARKDOWN)
 
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Заглушка для обычных сообщений
     user_id = update.effective_user.id
@@ -1352,6 +1363,9 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
     url = random.choice(MEMES)
@@ -1372,6 +1386,9 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     level = get_level(stats["average"])
     level_name = get_level_name(level, lang)
@@ -1412,6 +1429,9 @@ async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     pack = random.choice(["regular", "gif"])
     sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
@@ -1430,6 +1450,9 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -1483,8 +1506,15 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=reply_markup,
                     parse_mode=ParseMode.HTML
                 )
-            except:
-                pass
+            except Exception as e:
+                if "message is not modified" not in str(e):
+                    msg = await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=final_text,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.HTML
+                    )
+                    menu_message_ids[user_id] = msg.message_id
         else:
             msg = await context.bot.send_message(
                 chat_id=chat_id,
@@ -1507,8 +1537,15 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=keyboard,
                     parse_mode=ParseMode.MARKDOWN
                 )
-            except:
-                pass
+            except Exception as e:
+                if "message is not modified" not in str(e):
+                    msg = await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=empty_text,
+                        reply_markup=keyboard,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    menu_message_ids[user_id] = msg.message_id
         else:
             msg = await context.bot.send_message(
                 chat_id=chat_id,
@@ -1517,7 +1554,7 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode=ParseMode.MARKDOWN
             )
             menu_message_ids[user_id] = msg.message_id
-            
+                        
 async def lb_next(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['leaderboard_page'] = context.user_data.get('leaderboard_page', 0) + 1
     await leaderboard(update, context)
@@ -1540,6 +1577,9 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     if await is_subscribed(user_id):
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "already_subscribed"), context)
@@ -1578,6 +1618,9 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     if not await is_subscribed(user_id):
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "not_subscribed"), context)
@@ -1660,6 +1703,9 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -1682,6 +1728,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     help_text = get_text(lang, "help")
     final_text = add_hooks(lang, help_text)
@@ -1722,6 +1771,9 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     if user_id in last_responses:
         try:
@@ -1821,6 +1873,9 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     logging.info(f"REFERRALS: called by user {user_id}")
     
@@ -1876,6 +1931,9 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -1925,6 +1983,9 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -1974,6 +2035,9 @@ async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     # Удаляем контентное сообщение
     if user_id in last_responses:
@@ -2004,6 +2068,9 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     # Удаляем контентное сообщение, если есть
     if user_id in last_responses:
@@ -2101,6 +2168,11 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     logging.info(f"MY_STATS: called by user {user_id}")
     
@@ -2289,6 +2361,9 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     
     await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
     
     if user_id in last_responses:
         try:
@@ -2458,6 +2533,9 @@ def run_health_server():
 def main():
     init_supabase()
     start_scheduler()
+    
+    global cached_fumble_questions
+    cached_fumble_questions = asyncio.run(fetch_fumble_questions())
     
     app = Application.builder().token(TOKEN).build()
     
