@@ -1998,8 +1998,6 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    await update_streak(user_id)
-    
     logging.info(f"MY_STATS: called by user {user_id}")
     
     try:
@@ -2021,26 +2019,29 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         position = await get_user_position(user_id)
         logging.info(f"MY_STATS: position = {position}")
         
-        # Безопасно извлекаем значения
+        # Безопасно извлекаем значения (защита от None)
         avg_score = stats.get("average", 0) if stats else 0
         total_fumbles = stats.get("count", 0) if stats else 0
-        total_score = stats.get("total_score", 0) if stats else 0
         signal_clicks = stats.get("signal_clicks", 0) if stats else 0
         
         level = get_level(avg_score)
         level_name = get_level_name(level, lang)
         
+        current_streak = streak_info.get("current_streak", 0) if streak_info else 0
+        
+        referrals = await get_referrals_count(user_id)
+        
         # Формируем текст
         text = get_text(
             lang, "my_stats",
-            level,                  # {0}
-            level_name,             # {1}
-            total_fumbles,          # {2}
-            avg_score,              # {3}
-            signal_clicks,          # {4}
-            streak_info.get("current_streak", 0) if streak_info else 0,  # {5}
-            await get_referrals_count(user_id),  # {6}
-            position                # {7}
+            level,
+            level_name,
+            total_fumbles,
+            avg_score,
+            signal_clicks,
+            current_streak,
+            referrals,
+            position
         )
         
         keyboard = get_my_stats_menu(lang)
@@ -2058,7 +2059,6 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logging.info(f"MY_STATS: menu edited for user {user_id}")
             except Exception as e:
                 logging.error(f"MY_STATS: edit failed: {e}")
-                # Отправляем новое сообщение
                 msg = await context.bot.send_message(
                     chat_id=chat_id,
                     text=text,
@@ -2078,8 +2078,8 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except Exception as e:
         logging.error(f"MY_STATS crashed for user {user_id}: {e}", exc_info=True)
-        await query.message.reply_text(f"❌ Ошибка при загрузке статистики. Попробуй позже.")
-                        
+        await query.message.reply_text("❌ Ошибка при загрузке статистики. Попробуй позже.")
+                                
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
                                  total_fumbles: int, avg_score: float,
                                  position: int, lang: str) -> BytesIO:
