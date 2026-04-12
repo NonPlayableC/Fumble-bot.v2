@@ -2605,7 +2605,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "my_certificates": await my_certificates(update, context)
     elif data.startswith("view_cert_"): await view_certificate(update, context)
     elif data == "share_cert":
-    await share_certificate(update, context)
+        await share_certificate(update, context)
         
 # ... конец button_callback ...
 
