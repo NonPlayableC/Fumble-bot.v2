@@ -522,6 +522,27 @@ TEXTS = {
             "Here's a picture. Look while your portfolio crashes. Entertain yourself.",
             "Here. This is the only thing I can give you for free. And without harming your health."
         ],
+        "no_certificates": [
+            "You have no certificates yet. Generate one in Game Center, if you dare.",
+            "Empty. Like your portfolio. At least make one certificate of shame.",
+            "No certificates. You can't even suffer properly? Pathetic.",
+            "Not a single certificate. Nothing to brag about. Sad.",
+            "Your certificate could be here. But you didn't suffer enough. 🦝"
+        ],
+        "total_certificates": [
+            "Total certificates: {}. Your collection of shame is growing.",
+            "You've created {} certificates. Got a frame yet?",
+            "Your collection has {} certificates. A museum of your bottom.",
+            "{} certificates. Each one is a scar on your wallet.",
+            "You have {} certificates of shame. Mom would be proud. Probably."
+        ],
+        "certificate_view": [
+            "📜 Certificate from {}\n\nYour official document of shame. Frame it.",
+            "📜 Issued on {}\n\nProof that you exist in the negative.",
+            "📜 {} — the day your shame was documented.\n\nCertificate is real. Unlike your profits.",
+            "📜 Certificate from {}\n\nShow it to mom. She'll cry. From laughter.",
+            "📜 {} — this date goes down in history.\n\nYour history of failures."
+        ]
         "titles": {
             "top1": "👑 King of Bottom",
             "top2": "💀 Bottom Watcher",
@@ -1169,6 +1190,27 @@ TEXTS = {
             "Вот тебе картинка. Смотри, пока твой портфель падает. Развлекись.",
             "Держи. Это единственное, что я могу тебе дать бесплатно. И без вреда для здоровья."
         ],
+        "no_certificates": [
+            "У тебя пока нет сертификатов. Сгенерируй в Game Center, если не боишься бумаги.",
+            "Пусто. Как твой портфель. Сделай хоть один сертификат позора.",
+            "Сертификатов нет. Ты даже страдать красиво не можешь?",
+            "Ни одного сертификата. Даже похвастаться нечем. Жалко.",
+            "Здесь мог бы быть твой сертификат. Но ты недостаточно страдал. 🦝"
+        ],
+        "total_certificates": [
+            "Всего сертификатов: {}. Коллекция позора растёт.",
+            "Ты создал {} сертификатов. Рамку уже купил?",
+            "В твоей коллекции {} сертификатов. Музей твоего дна.",
+            "{} сертификатов. Каждый — как шрам на твоём кошельке.",
+            "У тебя {} сертификатов позора. Мама бы гордилась. Наверное."
+        ],
+        "certificate_view": [
+            "📜 Сертификат от {}\n\nТвой официальный документ позора. Вставь в рамку.",
+            "📜 Выдан {}\n\nДоказательство того, что ты существуешь в минус.",
+            "📜 {} — день, когда твой позор был задокументирован.\n\nСертификат настоящий. В отличие от твоей прибыли.",
+            "📜 Сертификат от {}\n\nПокажи маме. Она заплачет. От смеха.",
+            "📜 {} — эта дата войдёт в историю.\n\nИсторию твоих провалов."
+        ]
         "titles": {
             "top1": "👑 Король дна",
             "top2": "💀 Смотрящий дна",
@@ -1825,6 +1867,27 @@ TEXTS = {
             "fumble50": "🥇 Degen Experto",
             "fumble10": "🗿 Joven Padawan"
         },
+        "no_certificates": [
+            "Aún no tienes certificados. Genera uno en Game Center, si te atreves.",
+            "Vacío. Como tu cartera. Al menos haz un certificado de vergüenza.",
+            "Sin certificados. ¿Ni siquiera puedes sufrir bien? Patético.",
+            "Ni un solo certificado. Nada de qué presumir. Triste.",
+            "Tu certificado podría estar aquí. Pero no sufriste lo suficiente. 🦝"
+        ],
+        "total_certificates": [
+            "Total de certificados: {}. Tu colección de vergüenza crece.",
+            "Has creado {} certificados. ¿Ya compraste un marco?",
+            "Tu colección tiene {} certificados. Un museo de tu fondo.",
+            "{} certificados. Cada uno es una cicatriz en tu cartera.",
+            "Tienes {} certificados de la vergüenza. Mamá estaría orgullosa. Probablemente."
+        ],
+        "certificate_view": [
+            "📜 Certificado del {}\n\nTu documento oficial de vergüenza. Enmárcalo.",
+            "📜 Emitido el {}\n\nPrueba de que existes en negativo.",
+            "📜 {} — el día que tu vergüenza fue documentada.\n\nCertificado real. A diferencia de tus ganancias.",
+            "📜 Certificado del {}\n\nMuéstraselo a mamá. Llorará. De risa.",
+            "📜 {} — esta fecha pasa a la historia.\n\nTu historia de fracasos."
+        ]
         "sticker": [
             "Aquí tienes un sticker. Es lo único aquí que no perderá valor. 🎨",
             "🎨 Sticker. Al menos esto no pierde valor. A diferencia de tu cartera.",
@@ -2463,6 +2526,27 @@ TEXTS = {
             "给你张图。看着你的投资组合崩盘时娱乐一下。",
             "给你。这是我能免费给你的唯一东西。还不伤害你的健康。"
         ],
+        "no_certificates": [
+            "你还没有证书。敢的话去游戏中心生成一个。",
+            "空的。像你的钱包一样。至少做一张耻辱证书。",
+            "没有证书。你连受苦都做不好？可悲。",
+            "一张证书都没有。没什么好炫耀的。悲哀。",
+            "你的证书本可以在这里。但你受苦不够。🦝"
+        ],
+        "total_certificates": [
+            "证书总数: {}。你的耻辱收藏在增长。",
+            "你创建了 {} 张证书。买相框了吗？",
+            "你的收藏有 {} 张证书。你的底部博物馆。",
+            "{} 张证书。每张都是你钱包上的伤疤。",
+            "你有 {} 张耻辱证书。妈妈会骄傲的。大概吧。"
+        ],
+        "certificate_view": [
+            "📜 {} 的证书\n\n你的官方耻辱文件。裱起来。",
+            "📜 颁发于 {}\n\n证明你存在于负数中。",
+            "📜 {} — 你的耻辱被记录的日子。\n\n证书是真的。跟你的利润不一样。",
+            "📜 {} 的证书\n\n给妈妈看。她会哭。笑哭的。",
+            "📜 {} — 这个日期载入史册。\n\n你的失败史。"
+        ]
         "titles": {
             "top1": "👑 底部之王",
             "top2": "💀 底部看守",
