@@ -33,7 +33,8 @@ TEXTS = {
             "prev": "◀️ Prev",    # EN
             "next": "Next ▶️",
             "manual_fumble": "🧠 Degen Confession",
-            "share_certificate": "📤 Share Certificate",
+            "share_certificate": "📤 SHARE",
+            "my_certificates": "📜 MY CERTIFICATES"
             
         },
         "ignore_text": [
@@ -678,7 +679,8 @@ TEXTS = {
             "prev": "◀️ Назад",   # RU
             "next": "Вперёд ▶️",
             "manual_fumble": "🧠 Исповедь дегена",
-            "share_certificate": "📤 Поделиться",
+            "share_certificate": "📤 ПОДЕЛИТЬСЯ",
+            "my_certificates": "📜 МОИ СЕРТИФИКАТЫ"  
             
         },
         "ignore_text": [
@@ -1324,8 +1326,9 @@ TEXTS = {
             "prev": "◀️ Atrás",   # ES
             "next": "Siguiente ▶️",
             "manual_fumble": "🧠 Confesión Degenerada",
-            "share_certificate": "📤 Compartir",
-            
+            "share_certificate": "📤 COMPARTIR",
+            "my_certificates": "📜 MIS CERTIFICADOS"
+ 
         },
         "ignore_text": [
             "¿Ves esos botones? Púlsalos. No soy tu terapeuta. 💀",
@@ -1970,6 +1973,8 @@ TEXTS = {
             "next": "下一页 ▶️",
             "manual_fumble": "🧠 赌狗忏悔",
             "share_certificate": "📤 分享",
+            "my_certificates": "📜 我的证书"
+
             
         },
         "ignore_text": [
