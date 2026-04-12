@@ -640,17 +640,10 @@ TEXTS = {
         "referrals_title": "REFERRALS",
         "invited": "Invited",
         "your_link": "Your link",
-        "active_day": "Active",
-        "inactive_day": "Inactive",
-        "today_active": "Today (active)",
-        "today_inactive": "Today (inactive)",
-        "current_streak": "Current streak",
-        "longest_streak": "Longest streak",
         "active_quests": "Active Quests",
         "no_active_quests": "No active quests. Come back tomorrow!",
-        "recently_completed": "Recently Completed",
-        "progress": "Progress",
-        
+        "recently_completed": "Recently Completed"
+                
   },
     "ru": {
         "buttons": {
@@ -1253,7 +1246,6 @@ TEXTS = {
         "lang_select": "🌐 Выбери язык:\n\nВыбери язык своих страданий.",
         "lang_changed": "✅ Язык изменён. Теперь страдай на новом языке.",
         "help": "❓ **Помощь BINTY**\n\n📈 **СИГНАЛ (ПЛОХОЙ)** — Плохой торговый сигнал\n🤡 **ФАМБЛ (ТВОЙ СТЫД)** — Оцени свою худшую сделку\n💰 **ПОРТФЕЛЬ (БОЛЬ)** — Крах портфеля\n💵 **ЦЕНА (НЕ ВЕРЬ)** — Текущая цена $BINTY\n👥 **ДЕРЖАТЕЛИ** — Количество держателей\n🔍 **БАЛАНС (СКОРЕЕ ВСЕГО 0)** — Проверить кошелёк\n🖼️ **МЕМ** — Случайный мем\n🎨 **СТИКЕР** — Случайный стикер\n🏆 **ТОП ЛУЗЕРОВ** — Лидерборд\n🌐 **ЯЗЫК** — Сменить язык\n🔔 **ПОДПИСАТЬСЯ (НА БОЛЬ)** — Авто-сигналы каждые 6ч\n🔕 **ОТПИСАТЬСЯ** — Отписаться\n🛒 **КУПИТЬ** — Купить $BINTY\n🌍 **САЙТ** — Открыть сайт\n💬 **ЧАТ ЛУЗЕРОВ** — Вступить в Telegram-чат\n\n⚠️ **Помни:** Я не твой финансовый советник. Я твой финансовый враг.",
-        "cancel_btn": "❌ Отмена",
         "cooldown": "⏳ Подожди пару секунд. Я не машина. (Хотя на самом деле машина, но всё равно.)",
         "rate_limit": "⏳ Слишком много запросов. Передохни. Ты выглядишь отчаянно. 💀",
         "unknown": "Я не понимаю. Нажми на кнопку. Для этого они и нужны.",
@@ -1293,16 +1285,9 @@ TEXTS = {
         "referrals_title": "РЕФЕРАЛЫ",
         "invited": "Приглашено",
         "your_link": "Твоя ссылка",
-        "active_day": "Активен",
-        "inactive_day": "Пропущен",
-        "today_active": "Сегодня (активен)",
-        "today_inactive": "Сегодня (пропущен)",
-        "current_streak": "Текущая серия",
-        "longest_streak": "Рекорд",
         "active_quests": "Активные квесты",
         "no_active_quests": "Нет активных квестов. Возвращайся завтра!",
-        "recently_completed": "Недавно выполнено",
-        "progress": "Прогресс",
+        "recently_completed": "Недавно выполнено"
                         
     },
     "es": {
@@ -1905,7 +1890,6 @@ TEXTS = {
         "lang_select": "🌐 Selecciona idioma:\n\nElige tu idioma de sufrimiento.",
         "lang_changed": "✅ Idioma cambiado. Ahora sufre en un nuevo idioma.",
         "help": "❓ **Ayuda de BINTY**\n\n📈 **SEÑAL (MALA)** — Mala señal de trading\n🤡 **FUMBLE (TU VERGÜENZA)** — Califica tu peor trade\n💰 **PORTAFOLIO (DOLOR)** — Ve tu cartera colapsar\n💵 **PRECIO (NO CREAS)** — Precio actual de $BINTY\n👥 **TENEDORES** — Número de tenedores\n🔍 **SALDO (PROBABLEMENTE 0)** — Verifica tu cartera\n🖼️ **MEME** — Meme aleatorio\n🎨 **STICKER** — Sticker aleatorio\n🏆 **PEORES PERDEDORES** — Tabla de clasificación\n🌐 **IDIOMA** — Cambiar idioma\n🔔 **SUSCRIBIRSE (AL DOLOR)** — Auto-señales cada 6h\n🔕 **CANCELAR SUSCRIPCIÓN** — Detener auto-señales\n🛒 **COMPRAR** — Comprar $BINTY\n🌍 **SITIO WEB** — Abrir sitio web\n💬 **CHAT DE PERDEDORES** — Unirse al chat de Telegram\n\n⚠️ **Recuerda:** No soy tu asesor financiero. Soy tu enemigo financiero.",
-        "cancel_btn": "❌ Cancelar",
         "cooldown": "⏳ Espera unos segundos. No soy una máquina. (Bueno sí, pero igual.)",
         "rate_limit": "⏳ Demasiadas solicitudes. Respira. Te ves desesperado. 💀",
         "unknown": "No entiendo. Pulsa un botón. Para eso están.",
@@ -1945,16 +1929,9 @@ TEXTS = {
         "referrals_title": "REFERIDOS",
         "invited": "Invitados",
         "your_link": "Tu enlace",
-        "active_day": "Activo",
-        "inactive_day": "Inactivo",
-        "today_active": "Hoy (activo)",
-        "today_inactive": "Hoy (inactivo)",
-        "current_streak": "Racha actual",
-        "longest_streak": "Racha más larga",
         "active_quests": "Misiones activas",
         "no_active_quests": "No hay misiones activas. ¡Vuelve mañana!",
-        "recently_completed": "Completadas recientemente",
-        "progress": "Progreso",
+        "recently_completed": "Completadas recientemente"
         
     },
     "zh": {
@@ -2558,7 +2535,6 @@ TEXTS = {
         "lang_select": "🌐 选择语言:\n\n选择你的痛苦语言。",
         "lang_changed": "✅ 语言已更改。现在用新语言受苦吧。",
         "help": "❓ **BINTY特工帮助**\n\n📈 **信号 (坏的)** — 坏交易信号\n🤡 **失误 (你的耻辱)** — 评价你最糟的交易\n💰 **投资组合 (痛苦)** — 看你的投资组合崩盘\n💵 **价格 (别信)** — 当前$BINTY价格\n👥 **持有者** — 持有者数量\n🔍 **余额 (可能是0)** — 检查你的钱包\n🖼️ **表情包** — 随机表情包\n🎨 **贴纸** — 随机贴纸\n🏆 **顶级输家** — 排行榜\n🌐 **语言** — 切换语言\n🔔 **订阅 (痛苦套餐)** — 每6小时自动信号\n🔕 **退订** — 停止自动信号\n🛒 **购买** — 购买$BINTY\n🌍 **网站** — 打开网站\n💬 **输家聊天室** — 加入电报群\n\n⚠️ **记住:** 我不是你的财务顾问。我是你的财务敌人。",
-        "cancel_btn": "❌ 取消",
         "cooldown": "⏳ 等几秒钟。我不是机器。(虽然我确实是，但还是。)",
         "rate_limit": "⏳ 请求太多。喘口气。你看起来很绝望。💀",
         "unknown": "我不明白。按个按钮。那才是它们的用途。",
@@ -2598,16 +2574,9 @@ TEXTS = {
         "referrals_title": "推荐",
         "invited": "已邀请",
         "your_link": "你的链接",
-        "active_day": "活跃",
-        "inactive_day": "未活跃",
-        "today_active": "今天 (活跃)",
-        "today_inactive": "今天 (未活跃)",
-        "current_streak": "当前连续",
-        "longest_streak": "最长连续",
         "active_quests": "活跃任务",
         "no_active_quests": "没有活跃任务。明天再来！",
-        "recently_completed": "最近完成",
-        "progress": "进度",
+        "recently_completed": "最近完成"
         
     }
 }
