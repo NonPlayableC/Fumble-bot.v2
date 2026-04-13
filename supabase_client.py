@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import random
+import asyncio
 import aiohttp
 from datetime import datetime, date, timedelta
 from typing import Optional, Dict, Any, List, Tuple
@@ -1058,3 +1059,97 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                         
     except Exception as e:
         logging.error(f"Error in check_and_award_achievements: {e}")
+        
+# ==================== ЛОГИРОВАНИЕ ОШИБОК ====================
+
+async def log_error(user_id: int, error_text: str):
+    """Сохраняет ошибку в БД"""
+    try:
+        supabase.table("error_logs").insert({
+            "user_id": user_id,
+            "error_text": error_text,
+            "created_at": datetime.now().isoformat()
+        }).execute()
+    except Exception as e:
+        logging.error(f"Failed to log error: {e}")
+
+# ==================== ТЕКСТЫ ИЗ БД ====================
+
+async def get_translation(key: str, lang: str = "en") -> Optional[Any]:
+    """Получает текст из БД. Если нет — вернет None."""
+    try:
+        res = supabase.table("translations").select("content, is_list").eq("key", key).eq("lang", lang).execute()
+        if res.data:
+            item = res.data[0]
+            if item['is_list']:
+                # Если это список, парсим JSON или разделяем по переносам строки
+                # Тут простая реализация, можно усложнить
+                return item['content'].split('|||') 
+            return item['content']
+        return None
+    except:
+        return None
+
+# ==================== ЛИМИТЫ ====================
+
+async def check_and_update_limits(user_id: int, action: str) -> dict:
+    """
+    Проверяет и обновляет лимиты.
+    action: 'signal' или 'fumble'
+    Возвращает {'allowed': bool, 'message': str}
+    """
+    now = datetime.now()
+    
+    try:
+        res = supabase.table("users").select("last_signal_at, last_fumble_at, daily_fumble_count").eq("user_id", user_id).single().execute()
+        user = res.data
+        
+        if action == 'signal':
+            # Лимит: 1 раз в 15 минут
+            last = user.get('last_signal_at')
+            if last:
+                last_dt = datetime.fromisoformat(last)
+                diff = (now - last_dt).total_seconds() / 60
+                if diff < 15:
+                    remain = int(15 - diff)
+                    return {'allowed': False, 'message': f"⏳ Следующий сигнал через {remain} мин. Не спеши терять."}
+            
+            # Обновляем время
+            supabase.table("users").update({"last_signal_at": now.isoformat()}).eq("user_id", user_id).execute()
+            return {'allowed': True}
+            
+        elif action == 'fumble':
+            # Лимит: 5 раз в сутки (сброс в полночь)
+            last = user.get('last_fumble_at')
+            count = user.get('daily_fumble_count', 0)
+            
+            # Если новый день, сбрасываем счетчик
+            if last:
+                last_dt = datetime.fromisoformat(last)
+                if last_dt.date() < now.date():
+                    count = 0
+            
+            if count >= 5:
+                return {'allowed': False, 'message': "🚫 Лимит фамблов на сегодня исчерпан (5 шт). Иди работай."}
+            
+            # Обновляем
+            supabase.table("users").update({
+                "last_fumble_at": now.isoformat(),
+                "daily_fumble_count": count + 1
+            }).eq("user_id", user_id).execute()
+            return {'allowed': True}
+
+    except Exception as e:
+        logging.error(f"Limit check error: {e}")
+        return {'allowed': True} # Если ошибка, лучше пропустить, чем блочить
+
+    return {'allowed': True}
+
+# ==================== МЕНЮ ID ====================
+
+async def get_menu_id(user_id: int) -> Optional[int]:
+    res = supabase.table("users").select("menu_message_id").eq("user_id", user_id).single().execute()
+    return res.data.get('menu_message_id') if res.data else None
+
+async def save_menu_id(user_id: int, message_id: int):
+    supabase.table("users").update({"menu_message_id": message_id}).eq("user_id", user_id).execute()
