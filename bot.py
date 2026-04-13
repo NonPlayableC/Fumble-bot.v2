@@ -48,7 +48,11 @@ from supabase_client import (
     get_all_achievements,
     check_signal_fumble_bonus,
     fetch_fumble_questions,
-    send_weekly_leaderboard
+    send_weekly_leaderboard,
+    save_menu_id,
+    get_menu_id,
+    check_and_update_limits,
+    log_error
 )
     
 from texts import TEXTS, get_text, add_hooks
@@ -288,14 +292,14 @@ async def get_last_swap_transaction(wallet: str) -> Optional[Dict[str, Any]]:
                     return tx
     return None
 
-def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") -> Tuple[int, str, Dict[str, Any]]:
+async def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") -> Tuple[int, str, Dict[str, Any]]:
     """
     Парсит транзакцию из Helius и вычисляет фамбл-счёт.
     Возвращает: (score, reason, details)
     """
     details = {}
     
-    # Тексты причин на всех языках
+    # Тексты причин на всех языках (оставил как было)
     REASONS = {
         "en": {
             "unknown_type": "Can't determine trade type, but it looks bad.",
@@ -387,7 +391,8 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
         
         is_buy = sent["mint"] in [SOL_MINT, USDC_MINT]
         
-        import asyncio
+        # --- ИСПРАВЛЕННАЯ ЧАСТЬ (НАЧАЛО) ---
+        # Мы выносим функцию получения цены, но вызываем её через await
         
         async def get_token_price(mint: str) -> float:
             try:
@@ -402,8 +407,8 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
                 pass
             return 0.0
         
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # УБРАЛИ loop = asyncio.new_event_loop()
+        # УБРАЛИ loop.run_until_complete
         
         if is_buy:
             bought_mint = received["mint"]
@@ -411,11 +416,16 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
             spent_amount = sent["amount"]
             spent_mint = sent["mint"]
             
-            current_price = loop.run_until_complete(get_token_price(bought_mint))
+            # Используем await напрямую
+            current_price = await get_token_price(bought_mint)
             
-            spent_price = loop.run_until_complete(get_token_price(spent_mint)) if spent_mint != SOL_MINT else 0
+            spent_price = 0
             if spent_mint == SOL_MINT:
-                spent_price = loop.run_until_complete(get_token_price(SOL_MINT))
+                spent_price = await get_token_price(SOL_MINT)
+            elif spent_mint == USDC_MINT:
+                spent_price = 1.0
+            else:
+                spent_price = await get_token_price(spent_mint)
             
             spent_usd = spent_amount * spent_price if spent_price > 0 else spent_amount * 20
             
@@ -455,15 +465,17 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
             received_mint = received["mint"]
             received_amount = received["amount"]
             
-            received_price = loop.run_until_complete(get_token_price(received_mint)) if received_mint != SOL_MINT else 0
+            received_price = 0
             if received_mint == SOL_MINT:
-                received_price = loop.run_until_complete(get_token_price(SOL_MINT))
-            if received_mint == USDC_MINT:
+                received_price = await get_token_price(SOL_MINT)
+            elif received_mint == USDC_MINT:
                 received_price = 1.0
+            else:
+                received_price = await get_token_price(received_mint)
                 
             received_usd = received_amount * received_price if received_price > 0 else received_amount
             
-            current_price = loop.run_until_complete(get_token_price(sold_mint))
+            current_price = await get_token_price(sold_mint)
             estimated_entry = current_price * random.uniform(0.7, 1.5)
             
             pnl_percent = ((received_usd / sold_amount) - estimated_entry) / estimated_entry * 100 if estimated_entry > 0 else 0
@@ -492,14 +504,15 @@ def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = "en") 
                 score = random.randint(0, 2)
                 reason = r["sell_profit"].format(pnl_percent, received_usd)
         
-        loop.close()
+        # УБРАЛИ loop.close()
+        
         score = max(0, min(10, score + random.randint(-1, 1)))
         return score, reason, details
         
     except Exception as e:
         logging.error(f"Error parsing transaction: {e}")
         return random.randint(5, 8), r["parse_error"], {}
-        
+                
 async def get_portfolio_history(address: str, days: int = 7):
     if not address or not TOKEN_ADDRESS:
         return None
@@ -781,8 +794,9 @@ async def send_with_pause(chat_id: int, user_id: int, first_text: str,
     await delete_previous_and_send(chat_id, user_id, final_text, context)
 
 async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE, lang: str = None):
-    """Обновляет главное меню, удаляя перед этим контентное сообщение"""
+    """Обновляет главное меню, сохраняя ID в БД для перезапусков"""
     global menu_message_ids, last_responses
+    
     if lang is None:
         lang = await get_language(user_id)
     
@@ -797,33 +811,42 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     menu_text = TEXTS[lang].get("menu_title", "📋 BINTY Menu")
     menu_markup = await get_main_menu(user_id, lang)
     
-    if user_id in menu_message_ids:
+    # 1. Ищем ID сообщения меню: сначала в памяти (быстро)
+    msg_id = menu_message_ids.get(user_id)
+    
+    # 2. Если в памяти нет (бот перезагружался), ищем в БД
+    if not msg_id:
+        msg_id = await get_menu_id(user_id)
+    
+    # 3. Пытаемся отредактировать сообщение
+    if msg_id:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
-                message_id=menu_message_ids[user_id],
+                message_id=msg_id,
                 text=menu_text,
                 reply_markup=menu_markup,
                 parse_mode=ParseMode.MARKDOWN
             )
+            # Сохраняем ID в кэш памяти, чтобы下次 не дергать БД
+            menu_message_ids[user_id] = msg_id
+            return
         except Exception as e:
-            logging.error(f"Failed to edit menu for {user_id}: {e}")
-            msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=menu_text,
-                reply_markup=menu_markup,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            menu_message_ids[user_id] = msg.message_id
-    else:
-        msg = await context.bot.send_message(
-            chat_id=chat_id,
-            text=menu_text,
-            reply_markup=menu_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        menu_message_ids[user_id] = msg.message_id
-        
+            logging.warning(f"Failed to edit menu {msg_id} for {user_id}: {e}")
+            # Если ошибка (сообщение удалено), код пойдет дальше и создаст новое
+    
+    # 4. Если отредактировать не вышло или ID не найден — шлем новое сообщение
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=menu_text,
+        reply_markup=menu_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+    
+    # 5. Сохраняем новый ID и в память, и в БД
+    menu_message_ids[user_id] = msg.message_id
+    await save_menu_id(user_id, msg.message_id)
+            
 # ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
