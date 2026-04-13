@@ -897,6 +897,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
+    
+    await save_menu_id(user_id, msg.message_id)
 
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
