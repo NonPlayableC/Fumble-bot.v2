@@ -129,7 +129,8 @@ def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar"),
          InlineKeyboardButton(t["quests"], callback_data="quests")],
         [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
-        [InlineKeyboardButton(t["referrals"], callback_data="referrals")],
+        [InlineKeyboardButton(t["sticker"], callback_data="sticker"),
+         InlineKeyboardButton(t["referrals"], callback_data="referrals")],
         [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
