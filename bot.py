@@ -853,6 +853,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
     
+        # Добавляем дисклеймер для новых
+    if is_new:
+        disclaimer = "\n\n⚠️ *Важно: Я финансовый враг. Мои советы ведут к разорению. Нажимая кнопки, ты соглашаешься с тем, что у тебя нет шансов.*"
+        welcome_text += disclaimer
+    
+    await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
+    
     # Реферальная система
     if context.args and context.args[0].startswith('ref_'):
         try:
@@ -897,6 +904,14 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+        # --- НОВОЕ: ПРОВЕРКА ЛИМИТА ---
+    limit_check = await check_and_update_limits(user_id, 'signal')
+    if not limit_check['allowed']:
+        # Если лимит исчерпан, отправляем сообщение и выходим
+        await query.answer(limit_check['message'], show_alert=True)
+        return
+    # ------------------------------
+    
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
@@ -934,6 +949,15 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+        # --- НОВОЕ: ПРОВЕРКА ЛИМИТА ---
+    # Умный фамбл (анализ кошелька) можно оставить без лимита или сделать отдельный тип
+    # Но для ручного/общего проверим:
+    limit_check = await check_and_update_limits(user_id, 'fumble')
+    if not limit_check['allowed']:
+        await query.answer(limit_check['message'], show_alert=True)
+        return
+    # ------------------------------
     
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
@@ -1562,24 +1586,20 @@ async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
-        return
+    # Ссылка на твой стикерпак. Замени 'BintyPack' на название твоего пакета в Telegram
+    # Ссылка обычно выглядит так: https://t.me/addstickers/NameOfPack
+    sticker_pack_link = "https://t.me/addstickers/bintystickers" 
+
+    text = get_text(lang, "sticker_pack_text")
     
-    await update_streak(user_id)
-    await check_and_award_achievements(user_id, 'streak')
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
+    # Создаем кнопку с ссылкой
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📦 Добавить стикеры", url=sticker_pack_link)],
+        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+    ])
     
-    pack = random.choice(["regular", "gif"])
-    sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
-    if sticker_id:
-        await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-    else:
-        text = get_text(lang, "sticker")
-        final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context)
-        
+    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
+            
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
