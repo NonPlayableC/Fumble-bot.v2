@@ -131,7 +131,7 @@ def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
         [InlineKeyboardButton(t["sticker"], callback_data="sticker"),
          InlineKeyboardButton(t["referrals"], callback_data="referrals")],
-        [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton("↩️t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
@@ -140,7 +140,7 @@ def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
          InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
         [InlineKeyboardButton("📜 " + get_text(lang, "my_certificates"), callback_data="my_certificates")],
-        [InlineKeyboardButton("↩️ " + t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton("t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 # ==================== ПРИВЕТСТВИЯ ====================
