@@ -1492,15 +1492,13 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
         
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📤 " + get_text(lang, "share_certificate"), callback_data="share_cert")]
-        ])
-        msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption, reply_markup=keyboard)
+        # Отправляем фото БЕЗ кнопок
+        msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
         last_responses[user_id] = msg.message_id
+        
+        # Сохраняем сертификат (функцию save_certificate нужно добавить в импорт!)
         await save_certificate(user_id, msg.photo[-1].file_id)
-    except Exception as e:
-        logging.error(f"Certificate error: {e}")
-        await query.message.reply_text("Error generating certificate")
+        
         
 async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1522,24 +1520,38 @@ async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await context.bot.send_photo(chat_id=chat_id, photo=cert["file_id"], caption=text, parse_mode=ParseMode.MARKDOWN)
     
-async def share_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     
+    # Получаем список сертификатов из БД
     certificates = await get_user_certificates(user_id)
+    
     if not certificates:
-        await query.answer(get_text(lang, "no_certificates")[0], show_alert=True)
+        text = get_text(lang, "no_certificates")
+        # Просто отправляем сообщение, меню редактировать тут не обязательно
+        await context.bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.MARKDOWN)
         return
     
-    cert = certificates[0]
-    text = get_text(lang, "certificate_share", query.from_user.username or query.from_user.first_name)
+    text = get_text(lang, "total_certificates", len(certificates)) + "\n\n"
+    keyboard = []
     
-    await context.bot.send_photo(
-        chat_id=query.message.chat_id,
-        photo=cert["file_id"],
-        caption=text,
+    # Формируем кнопки для каждого сертификата
+    for cert in certificates:
+        date_str = cert["created_at"][:10]
+        btn_text = f"📜 {date_str}"
+        # Callback data должен содержать ID сертификата
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
+    
+    keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")])
+    
+    await context.bot.send_message(
+        chat_id=chat_id, 
+        text=text, 
+        reply_markup=InlineKeyboardMarkup(keyboard), 
         parse_mode=ParseMode.MARKDOWN
     )
                                 
@@ -2528,11 +2540,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await set_language(user_id, lang_code)
         await query.answer(f"✅ Язык изменён")
         await update_menu(chat_id, user_id, context, lang_code)
-    elif data == "my_certificates": await my_certificates(update, context)
-    elif data.startswith("view_cert_"): await view_certificate(update, context)
-    elif data == "share_cert":
-        await share_certificate(update, context)
-        
+    elif data == "my_certificates": 
+        await my_certificates(update, context)
+    elif data.startswith("view_cert_"): 
+        await view_certificate(update, context)
+            
 # ... конец button_callback ...
 
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
