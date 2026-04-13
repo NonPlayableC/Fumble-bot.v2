@@ -1574,7 +1574,7 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Callback data должен содержать ID сертификата
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
     
-    keyboard.append([InlineKeyboardButton("get_button_text(lang, "back"), callback_data="my_stats")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")])
     
     await context.bot.send_message(
         chat_id=chat_id, 
