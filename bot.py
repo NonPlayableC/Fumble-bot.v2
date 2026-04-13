@@ -1004,7 +1004,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Пытаемся выполнить умный фамбл
     try:
         await update_quest_progress(user_id, 'smart_fumble', 1)
-        score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
+        score, reason, tx_details = await calculate_fumble_from_tx(tx, wallet, lang)
         await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
         
         result_text = get_text(lang, "fumble_smart_result", score, reason)
