@@ -665,7 +665,8 @@ TEXTS = {
         "your_link": "Your link",
         "active_quests": "Active Quests",
         "no_active_quests": "No active quests. Come back tomorrow!",
-        "recently_completed": "Recently Completed"
+        "recently_completed": "Recently Completed",
+        "sticker_pack_text": "🎨 **Official BINTY Stickers**\n\nDecorate your chat with shame. Stickers for true losers. Click the button below to add the pack.",
                 
   },
     "ru": {
@@ -1333,7 +1334,8 @@ TEXTS = {
         "your_link": "Твоя ссылка",
         "active_quests": "Активные квесты",
         "no_active_quests": "Нет активных квестов. Возвращайся завтра!",
-        "recently_completed": "Недавно выполнено"
+        "recently_completed": "Недавно выполнено",
+        "sticker_pack_text": "🎨 **Официальные стикеры BINTY**\n\nУкрась свой чат позором. Наклейки для истинных проигравших. Жми кнопку ниже, чтобы добавить пак.",
                         
     },
     "es": {
@@ -2000,7 +2002,8 @@ TEXTS = {
         "your_link": "Tu enlace",
         "active_quests": "Misiones activas",
         "no_active_quests": "No hay misiones activas. ¡Vuelve mañana!",
-        "recently_completed": "Completadas recientemente"
+        "recently_completed": "Completadas recientemente",
+        "sticker_pack_text": "🎨 **Stickers Oficiales de BINTY**\n\nDecora tu chat con vergüenza. Stickers para verdaderos perdedores. Pulsa el botón de abajo para añadir el pack.",
         
     },
     "zh": {
@@ -2669,7 +2672,8 @@ TEXTS = {
         "your_link": "你的链接",
         "active_quests": "活跃任务",
         "no_active_quests": "没有活跃任务。明天再来！",
-        "recently_completed": "最近完成"
+        "recently_completed": "最近完成",
+        "sticker_pack_text": "🎨 **BINTY 官方表情包**\n\n用耻辱装饰你的聊天。真正失败者的贴纸。点击下方按钮添加。",
         
     }
 }
