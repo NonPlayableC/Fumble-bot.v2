@@ -131,7 +131,7 @@ def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
         [InlineKeyboardButton(t["sticker"], callback_data="sticker"),
          InlineKeyboardButton(t["referrals"], callback_data="referrals")],
-        [InlineKeyboardButton("↩️t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
@@ -139,8 +139,8 @@ def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
          InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
-        [InlineKeyboardButton("📜 " + get_text(lang, "my_certificates"), callback_data="my_certificates")],
-        [InlineKeyboardButton("t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton(t["my_certificates"], callback_data="my_certificates")],
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 # ==================== ПРИВЕТСТВИЯ ====================
@@ -982,8 +982,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Нет кошелька — редактируем меню
         text = get_text(lang, "no_wallet_for_smart_fumble")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
-            [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+            [InlineKeyboardButton(get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
         # Редактируем меню
         if user_id in menu_message_ids:
@@ -1008,8 +1008,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Кошелёк есть, но транзакций нет — редактируем меню
         text = get_text(lang, "no_tx_for_smart_fumble")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
-            [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+            [InlineKeyboardButton(get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
         if user_id in menu_message_ids:
             try:
@@ -1051,8 +1051,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"SMART FUMBLE: failed for user {user_id}: {e}", exc_info=True)
         text = get_text(lang, "smart_fumble_error")
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🧠 " + get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
-            [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+            [InlineKeyboardButton(get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
         if user_id in menu_message_ids:
             try:
@@ -1574,7 +1574,7 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Callback data должен содержать ID сертификата
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
     
-    keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")])
+    keyboard.append([InlineKeyboardButton("get_button_text(lang, "back"), callback_data="my_stats")])
     
     await context.bot.send_message(
         chat_id=chat_id, 
