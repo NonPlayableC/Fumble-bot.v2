@@ -1516,13 +1516,14 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
         
-        # Отправляем фото БЕЗ кнопок
         msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
         last_responses[user_id] = msg.message_id
         
-        # Сохраняем сертификат (функцию save_certificate нужно добавить в импорт!)
         await save_certificate(user_id, msg.photo[-1].file_id)
         
+    except Exception as e:
+        logging.error(f"Certificate error: {e}")
+        await query.message.reply_text("Error generating certificate")        
         
 async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
