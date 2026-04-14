@@ -85,6 +85,10 @@ last_responses = {}
 menu_message_ids = {}
 user_request_times = {}
 user_fumble_state = {}  # {user_id: {"step": 1, "answers": []}}
+user_tasks = {}  # {user_id: asyncio.Task} — для отмены действий
+user_cooldowns = {}  # {user_id: {"certificate": timestamp, "signal": timestamp}}
+user_daily_limits = {}  # {user_id: {"fumble": count, "date": date}}
+user_certificate_hash = {}  # {user_id: hash_string} — для проверки изменений
 
 STICKERS = {"regular": [], "gif": []}
 MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
@@ -784,6 +788,21 @@ def clean_storage():
         for user_id, _ in to_remove:
             del menu_message_ids[user_id]
 
+def reset_daily_limits(user_id: int):
+    """Сбрасывает дневные лимиты, если наступил новый день"""
+    today = date.today().isoformat()
+    if user_id in user_daily_limits:
+        if user_daily_limits[user_id].get("date") != today:
+            user_daily_limits[user_id] = {"fumble": 0, "date": today}
+    else:
+        user_daily_limits[user_id] = {"fumble": 0, "date": today}
+        
+def get_stats_hash(stats: dict, position: int) -> str:
+    """Создаёт хеш статистики для проверки изменений"""
+    count = stats.get("count", 0) if stats else 0
+    avg = stats.get("average", 0) if stats else 0
+    return f"{count}_{avg:.1f}_{position}"
+
 async def delete_previous_and_send(chat_id: int, user_id: int, text: str,
                                    context: ContextTypes.DEFAULT_TYPE,
                                    reply_markup=None, parse_mode=None,
@@ -871,6 +890,68 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     # 5. Сохраняем новый ID и в память, и в БД
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
+    
+async def check_action_limit(user_id: int, action: str, lang: str) -> tuple[bool, str | None]:
+    """
+    Проверяет лимиты для действий.
+    Возвращает (разрешено, текст_алерта).
+    """
+    now = datetime.now()
+    today = date.today().isoformat()
+    
+    if action == "signal":
+        # Проверяем кулдаун 15 минут
+        if user_id in user_cooldowns:
+            last_signal = user_cooldowns[user_id].get("signal")
+            if last_signal:
+                diff = (now - last_signal).total_seconds()
+                if diff < 900:  # 15 минут
+                    minutes_left = int((900 - diff) / 60) + 1
+                    alert_text = get_text(lang, "signal_limit")
+                    if "{}" in alert_text:
+                        alert_text = alert_text.format(minutes_left)
+                    return False, alert_text
+        
+        # Записываем время
+        if user_id not in user_cooldowns:
+            user_cooldowns[user_id] = {}
+        user_cooldowns[user_id]["signal"] = now
+        return True, None
+    
+    elif action == "fumble":
+        reset_daily_limits(user_id)
+        
+        # Проверяем дневной лимит (5 раз)
+        current_count = user_daily_limits[user_id]["fumble"]
+        if current_count >= 5:
+            alert_text = get_text(lang, "fumble_limit")
+            return False, alert_text
+        
+        # Увеличиваем счётчик
+        user_daily_limits[user_id]["fumble"] = current_count + 1
+        return True, None
+    
+    elif action == "smart_fumble":
+        # Умный фамбл всегда разрешён (вне лимита)
+        return True, None
+    
+    elif action == "certificate_cooldown":
+        # Проверяем кулдаун 10 секунд
+        if user_id in user_cooldowns:
+            last_cert = user_cooldowns[user_id].get("certificate")
+            if last_cert:
+                diff = (now - last_cert).total_seconds()
+                if diff < 10:
+                    alert_text = get_text(lang, "certificate_cooldown")
+                    return False, alert_text
+        
+        # Записываем время
+        if user_id not in user_cooldowns:
+            user_cooldowns[user_id] = {}
+        user_cooldowns[user_id]["certificate"] = now
+        return True, None
+    
+    return True, None
             
 # ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -937,22 +1018,24 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    # --- ПРОВЕРКА ЛИМИТА (Отступы исправлены) ---
-    limit_check = await check_and_update_limits(user_id, 'signal')
-    if not limit_check['allowed']:
-        await query.answer(limit_check['message'], show_alert=True)
-        return
-    # --------------------------------------------
+    # Отменяем предыдущую задачу
+    if user_id in user_tasks:
+        user_tasks[user_id].cancel()
     
     if not await check_rate_limit(user_id):
         alert_text = get_text(lang, "rate_limit_alert")
         await query.answer(alert_text, show_alert=True)
         return
     
+    # Проверяем лимит SIGNAL
+    allowed, alert = await check_action_limit(user_id, "signal", lang)
+    if not allowed:
+        await query.answer(alert, show_alert=True)
+        return
+    
     await update_streak(user_id)
     await update_quest_progress(user_id, 'signal_count', 1)
     
-    # Удаляем предыдущее контентное сообщение
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -963,41 +1046,44 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
     last_responses[user_id] = pause_msg.message_id
     
-    await asyncio.sleep(3)
+    # Создаём задачу с задержкой
+    async def delayed_signal():
+        await asyncio.sleep(3)
+        signal_text = get_text(lang, "signal")
+        final_signal = add_hooks(lang, signal_text)
+        await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
+        await save_signal_history(user_id, signal_text)
+        await check_and_award_achievements(user_id, 'streak')
+        if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+            await update_user_title(user_id, update.effective_chat.id, context)
     
-    signal_text = get_text(lang, "signal")
-    final_signal = add_hooks(lang, signal_text)
-    await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
-    
-    await save_signal_history(user_id, signal_text)
-    await check_and_award_achievements(user_id, 'streak')
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)        
-        
+    task = asyncio.create_task(delayed_signal())
+    user_tasks[user_id] = task
+            
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Умный фамбл: анализ реальной транзакции через Helius/Solscan"""
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
     
-    # --- ПРОВЕРКА ЛИМИТА (Отступы исправлены) ---
-    limit_check = await check_and_update_limits(user_id, 'fumble')
-    if not limit_check['allowed']:
-        await query.answer(limit_check['message'], show_alert=True)
-        return
-    # --------------------------------------------
+    if user_id in user_tasks:
+        user_tasks[user_id].cancel()
     
     if not await check_rate_limit(user_id):
         alert_text = get_text(lang, "rate_limit_alert")
         await query.answer(alert_text, show_alert=True)
         return
     
+    # Проверяем лимит FUMBLE
+    allowed, alert = await check_action_limit(user_id, "fumble", lang)
+    if not allowed:
+        await query.answer(alert, show_alert=True)
+        return
+    
     await update_streak(user_id)
     await update_quest_progress(user_id, 'fumble_count', 1)
     
-    # Удаляем предыдущий контент
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -1007,13 +1093,11 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     wallet = await get_wallet_address(user_id)
     if not wallet:
-        # Нет кошелька — редактируем меню
         text = get_text(lang, "no_wallet_for_smart_fumble")
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton(get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
             [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
-        # Редактируем меню
         if user_id in menu_message_ids:
             try:
                 await context.bot.edit_message_text(
@@ -1033,7 +1117,6 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     tx = await get_last_swap_transaction(wallet)
     if not tx:
-        # Кошелёк есть, но транзакций нет — редактируем меню
         text = get_text(lang, "no_tx_for_smart_fumble")
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton(get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
@@ -1056,10 +1139,12 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             menu_message_ids[user_id] = msg.message_id
         return
     
-    # Пытаемся выполнить умный фамбл
+    # Умный фамбл — вне лимита, проверяем отдельно
+    allowed, _ = await check_action_limit(user_id, "smart_fumble", lang)
+    
     try:
         await update_quest_progress(user_id, 'smart_fumble', 1)
-        score, reason, tx_details = await calculate_fumble_from_tx(tx, wallet, lang)
+        score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
         await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
         
         result_text = get_text(lang, "fumble_smart_result", score, reason)
@@ -1097,7 +1182,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
             menu_message_ids[user_id] = msg.message_id
-        
+                    
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
     user_id = poll_answer.user.id
@@ -1149,9 +1234,18 @@ async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     lang = await get_language(user_id)
     await query.answer()
     
+    if user_id in user_tasks:
+        user_tasks[user_id].cancel()
+    
     if not await check_rate_limit(user_id):
         alert_text = get_text(lang, "rate_limit_alert")
         await query.answer(alert_text, show_alert=True)
+        return
+    
+    # Проверяем лимит FUMBLE
+    allowed, alert = await check_action_limit(user_id, "fumble", lang)
+    if not allowed:
+        await query.answer(alert, show_alert=True)
         return
     
     global cached_fumble_questions
@@ -1171,7 +1265,7 @@ async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     }
     
     await show_fumble_question(user_id, chat_id, lang, context)
-      
+          
 async def show_fumble_question(user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE):
     state = user_fumble_state.get(user_id)
     if not state:
@@ -1529,7 +1623,13 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     stats = await get_user_stats(user_id)
     if not stats or stats.get("count", 0) == 0:
-        await query.message.reply_text(get_text(lang, "no_fumbles_yet"))
+        await query.answer(get_text(lang, "no_fumbles_yet"), show_alert=True)
+        return
+    
+    # Проверяем кулдаун 10 секунд
+    allowed, alert = await check_action_limit(user_id, "certificate_cooldown", lang)
+    if not allowed:
+        await query.answer(alert, show_alert=True)
         return
     
     await update_streak(user_id)
@@ -1540,7 +1640,20 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level = get_level(stats["average"])
     level_name = get_level_name(level, lang)
     position = await get_user_position(user_id)
+    
+    # Проверяем, изменилась ли статистика
+    current_hash = get_stats_hash(stats, position)
+    if user_id in user_certificate_hash:
+        if user_certificate_hash[user_id] == current_hash:
+            alert_text = get_text(lang, "certificate_no_change")
+            await query.answer(alert_text, show_alert=True)
+            return
+    
     username = query.from_user.username or query.from_user.first_name
+    
+    # Отправляем сообщение "Рисую..."
+    drawing_text = get_text(lang, "drawing_certificate")
+    drawing_msg = await context.bot.send_message(chat_id=chat_id, text=drawing_text)
     
     try:
         img = generate_certificate_of_shame(user_id, username, level_name,
@@ -1548,23 +1661,31 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                             position, lang)
         await log_certificate_request(user_id)
         
-        caption = TEXTS[lang].get("certificate_caption", "Here is your Certificate of Shame.")
+        caption_list = TEXTS[lang].get("certificate_caption", ["Here is your Certificate of Shame."])
+        caption = random.choice(caption_list)
+        if "{}" in caption:
+            caption = caption.format(stats["count"])
         
+        # Удаляем сообщение "Рисую..." и предыдущий контент
+        await drawing_msg.delete()
         if user_id in last_responses:
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
             except:
                 pass
         
+        # Отправляем сертификат
         msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
         last_responses[user_id] = msg.message_id
-        
         await save_certificate(user_id, msg.photo[-1].file_id)
+        
+        # Сохраняем хеш
+        user_certificate_hash[user_id] = current_hash
         
     except Exception as e:
         logging.error(f"Certificate error: {e}")
-        await query.message.reply_text("Error generating certificate")        
-        
+        await drawing_msg.edit_text("❌ Ошибка при создании сертификата.")
+                
 async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
