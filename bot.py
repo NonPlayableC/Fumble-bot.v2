@@ -987,11 +987,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Добавляем дисклеймер для новых
     if is_new:
-        disclaimer = "\n\n⚠️ *Важно: Я финансовый враг. Мои советы ведут к разорению. Нажимая кнопки, ты соглашаешься с тем, что у тебя нет шансов.*"
-        welcome_text += disclaimer
-
-    await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
-    
+        disclaimer_text = get_text(lang, "disclaimer")
+        kb_disclaimer = InlineKeyboardMarkup([
+            [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
+             InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
+        ])
+        msg = await update.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
+        context.user_data['onboarding_msg_id'] = msg.message_id
+        return        
     # 5. Статистика
     stats = await get_user_stats(user_id)
     if stats:
@@ -1010,7 +1013,63 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
+ 
+async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
     
+    rules_text = get_text(lang, "rules")
+    kb_rules = InlineKeyboardMarkup([
+        [InlineKeyboardButton(get_text(lang, "rules_accept"), callback_data="accept_rules")]
+    ])
+    
+    await query.edit_message_text(rules_text, reply_markup=kb_rules, parse_mode=ParseMode.MARKDOWN)
+
+
+async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    # Удаляем сообщение с правилами
+    await query.message.delete()
+    
+    # Показываем главное меню
+    stats = await get_user_stats(user_id)
+    if stats:
+        level = get_level(stats["average"])
+        level_name = get_level_name(level, lang)
+        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+    else:
+        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
+    
+    await context.bot.send_message(chat_id=chat_id, text=stat_text, parse_mode=ParseMode.MARKDOWN)
+    
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
+        reply_markup=await get_main_menu(user_id, lang),
+        parse_mode=ParseMode.MARKDOWN
+    )
+    menu_message_ids[user_id] = msg.message_id
+ 
+async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    goodbye_text = get_text(lang, "goodbye_degen")
+    kb_comeback = InlineKeyboardMarkup([
+        [InlineKeyboardButton(get_text(lang, "changed_my_mind"), callback_data="accept_disclaimer")]
+    ])
+    
+    await query.edit_message_text(goodbye_text, reply_markup=kb_comeback, parse_mode=ParseMode.MARKDOWN)
+        
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2827,7 +2886,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_activities": await show_activities_menu(update, context)
     elif data == "menu_history": await show_history_menu(update, context)
     elif data == "menu_social": await show_social_menu(update, context)
-            
+    elif data == "accept_disclaimer":
+        await show_rules(update, context)
+    elif data == "accept_rules":
+        await finish_onboarding(update, context)
+                   
 # ... конец button_callback ...
 
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
