@@ -750,9 +750,11 @@ async def get_portfolio_roast(address: str, lang: str = "en") -> str:
 # ==================== КВЕСТЫ (ПОЛНАЯ СИСТЕМА) ====================
 
 async def generate_daily_quests_for_user(user_id: int) -> List[Dict]:
-    """Генерирует ежедневные квесты для пользователя"""
+    """Генерирует ежедневные квесты для пользователя (без дублирования)"""
     try:
-        # Получаем все активные квесты с duration_hours <= 24 (ежедневные)
+        today = datetime.now().date().isoformat()
+        
+        # Получаем все активные квесты с duration_hours <= 24
         res = supabase.table("quests").select("*").eq("is_active", True).lte("duration_hours", 24).execute()
         quests = res.data
         
@@ -760,8 +762,12 @@ async def generate_daily_quests_for_user(user_id: int) -> List[Dict]:
         now = datetime.now()
         
         for quest in quests:
-            # Проверяем, не назначен ли уже такой квест сегодня
-            existing = supabase.table("user_quests").select("id").eq("user_id", user_id).eq("quest_id", quest["id"]).gte("assigned_at", now.date().isoformat()).execute()
+            # Проверяем, не назначен ли уже такой квест СЕГОДНЯ
+            existing = supabase.table("user_quests").select("id") \
+                .eq("user_id", user_id) \
+                .eq("quest_id", quest["id"]) \
+                .gte("assigned_at", today) \
+                .execute()
             
             if not existing.data:
                 # Назначаем квест
@@ -782,7 +788,6 @@ async def generate_daily_quests_for_user(user_id: int) -> List[Dict]:
     except Exception as e:
         logging.error(f"Error generating quests for {user_id}: {e}")
         return []
-
 
 async def update_quest_progress(user_id: int, condition_type: str, increment: int = 1):
     """Обновляет прогресс всех активных квестов пользователя по типу условия"""
