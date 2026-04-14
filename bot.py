@@ -115,8 +115,7 @@ async def get_main_menu(user_id: int, lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["leaderboard"], callback_data="leaderboard"),
          InlineKeyboardButton(t["meme"], callback_data="meme")],
         [InlineKeyboardButton(subscribe_text, callback_data=subscribe_callback)],
-        [InlineKeyboardButton(t["my_stats"], callback_data="my_stats"),
-         InlineKeyboardButton(t["game_center"], callback_data="game_center")],
+        [InlineKeyboardButton(t["hall_of_suffering"], callback_data="hall_of_suffering")],
         [InlineKeyboardButton(t["language"], callback_data="language"),
          InlineKeyboardButton(t["help"], callback_data="help")],
         [InlineKeyboardButton(t["buy"], url=f"https://pump.fun/coin/{TOKEN_ADDRESS}"),
@@ -124,26 +123,46 @@ async def get_main_menu(user_id: int, lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(t["chat"], url=CHAT_URL),]
     ])
 
-def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
+def get_hall_of_suffering_menu(lang: str) -> InlineKeyboardMarkup:
     t = TEXTS[lang]["buttons"]
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t["achievements"], callback_data="achievements"),
-         InlineKeyboardButton(t["certificate"], callback_data="certificate")],
-        [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar"),
-         InlineKeyboardButton(t["quests"], callback_data="quests")],
-        [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
-        [InlineKeyboardButton(t["sticker"], url=STICKER_URL),
-         InlineKeyboardButton(t["referrals"], callback_data="referrals")],
+        [InlineKeyboardButton(t["progress"], callback_data="menu_progress")],
+        [InlineKeyboardButton(t["activities"], callback_data="menu_activities")],
+        [InlineKeyboardButton(t["history"], callback_data="menu_history")],
+        [InlineKeyboardButton(t["social"], callback_data="menu_social")],
         [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
-
-def get_my_stats_menu(lang: str) -> InlineKeyboardMarkup:
+    
+def get_progress_menu(lang: str) -> InlineKeyboardMarkup:
     t = TEXTS[lang]["buttons"]
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t["signal_history"], callback_data="signal_history"),
-         InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
-        [InlineKeyboardButton(t["my_certificates"], callback_data="my_certificates")],
-        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
+        [InlineKeyboardButton(t["achievements"], callback_data="achievements")],
+        [InlineKeyboardButton(t["certificate"], callback_data="certificate")],
+        [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar")],
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+    ])
+
+def get_activities_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["quests"], callback_data="quests")],
+        [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+    ])
+
+def get_history_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["signal_history"], callback_data="signal_history")],
+        [InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+    ])
+
+def get_social_menu(lang: str) -> InlineKeyboardMarkup:
+    t = TEXTS[lang]["buttons"]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t["referrals"], callback_data="referrals")],
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
     ])
 
 # ==================== ПРИВЕТСТВИЯ ====================
@@ -1634,10 +1653,10 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         nav_buttons = []
         if page > 0:
-            nav_buttons.append(InlineKeyboardButton("◀️ " + get_button_text(lang, "prev"), callback_data="lb_prev"))
+            nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "prev"), callback_data="lb_prev"))
         if page < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "next") + " ▶️", callback_data="lb_next"))
-        nav_buttons.append(InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu"))
+            nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "next"), callback_data="lb_next"))
+        nav_buttons.append(InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu"))
         reply_markup = InlineKeyboardMarkup([nav_buttons]) if nav_buttons else None
         
         final_text = add_hooks(lang, text)
@@ -1672,7 +1691,7 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         empty_text = get_text(lang, "leaderboard_empty")
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+            [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
         ])
         if user_id in menu_message_ids:
             try:
@@ -1959,8 +1978,8 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
             keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard.append([InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")])
-    keyboard.append([InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     if user_id in menu_message_ids:
         try:
@@ -2035,8 +2054,8 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += info
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
     if user_id in menu_message_ids:
@@ -2087,7 +2106,7 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "signal_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")]
     ])
     
     # Редактируем меню
@@ -2139,7 +2158,7 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="my_stats")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")]
     ])
     
     # Редактируем меню
@@ -2163,34 +2182,92 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         menu_message_ids[user_id] = msg.message_id
     
-async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    
     await update_streak(user_id)
-    await check_and_award_achievements(user_id, 'streak')
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
-    
-    # Удаляем контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-    
-    # Редактируем меню
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=menu_message_ids[user_id],
-                text=TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
-                reply_markup=get_game_center_menu(lang),
+                text=TEXTS[lang]["buttons"]["hall_of_suffering"],
+                reply_markup=get_hall_of_suffering_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
+async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang]["buttons"]["progress"],
+                reply_markup=get_progress_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
+async def show_activities_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang]["buttons"]["activities"],
+                reply_markup=get_activities_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
+async def show_history_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang]["buttons"]["history"],
+                reply_markup=get_history_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
+async def show_social_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang]["buttons"]["social"],
+                reply_markup=get_social_menu(lang),
                 parse_mode=ParseMode.MARKDOWN
             )
         except:
@@ -2258,8 +2335,8 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n"
     
     keyboard = [
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
     # Редактируем меню
@@ -2298,72 +2375,7 @@ def get_category(key: str) -> str:
     else:
         return "special"
 
-async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    lang = await get_language(user_id)
-    await query.answer()
-    
-    await update_streak(user_id)
-    await check_and_award_achievements(user_id, 'streak')
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
-    
-    logging.info(f"MY_STATS: called by user {user_id}")
-    
-    try:
-        # Удаляем контентное сообщение
-        if user_id in last_responses:
-            try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-                del last_responses[user_id]
-            except Exception as e:
-                logging.warning(f"MY_STATS: failed to delete content: {e}")
-
-        # Получаем данные
-        stats = await get_user_stats(user_id)
-        logging.info(f"MY_STATS: stats = {stats}")
-        
-        streak_info = await get_streak_info(user_id)
-        logging.info(f"MY_STATS: streak_info = {streak_info}")
-        
-        position = await get_user_position(user_id)
-        logging.info(f"MY_STATS: position = {position}")
-        
-        # Безопасно извлекаем значения (защита от None)
-        avg_score = stats.get("average", 0) if stats else 0
-        total_fumbles = stats.get("count", 0) if stats else 0
-        signal_clicks = stats.get("signal_clicks", 0) if stats else 0
-        
-        level = get_level(avg_score)
-        level_name = get_level_name(level, lang)
-        
-        current_streak = streak_info.get("current_streak", 0) if streak_info else 0
-        
-        referrals = await get_referrals_count(user_id)
-        
-        # Формируем текст
-        text = get_text(
-            lang, "my_stats",
-            level,
-            level_name,
-            total_fumbles,
-            avg_score,
-            signal_clicks,
-            current_streak,
-            referrals,
-            position
-        )
-        
-        keyboard = get_my_stats_menu(lang)
-        
-        # Редактируем меню
-        if user_id in menu_message_ids:
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=menu_message_ids[user_id],
+         message_id=menu_message_ids[user_id],
                     text=text,
                     reply_markup=keyboard,
                     parse_mode=ParseMode.MARKDOWN
@@ -2509,8 +2521,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "subscribe": await subscribe(update, context)
     elif data == "unsubscribe": await unsubscribe(update, context)
     elif data == "help": await help_command(update, context)
-    elif data == "game_center": await game_center(update, context)
-    elif data == "my_stats": await my_stats(update, context)
+    elif data == "hall_of_suffering": await hall_of_suffering(update, context)
+    elif data == "menu_progress": await show_progress_menu(update, context)
+    elif data == "menu_activities": await show_activities_menu(update, context)
+    elif data == "menu_history": await show_history_menu(update, context)
+    elif data == "menu_social": await show_social_menu(update, context)
     elif data == "achievements": await achievements(update, context)
     elif data == "certificate": await certificate(update, context)
     elif data == "suffering_calendar": await suffering_calendar(update, context)
