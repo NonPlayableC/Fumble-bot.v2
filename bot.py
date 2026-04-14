@@ -2297,7 +2297,38 @@ async def show_social_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except:
             pass
+
+async def game_center(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
     
+    await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
+    
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=menu_message_ids[user_id],
+                text=TEXTS[lang].get("game_center_title", "🎮 GAME CENTER"),
+                reply_markup=get_game_center_menu(lang),
+                parse_mode=ParseMode.MARKDOWN
+            )
+        except:
+            pass
+
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2384,6 +2415,95 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id      
+
+async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    chat_id = query.message.chat_id
+    lang = await get_language(user_id)
+    await query.answer()
+    
+    await update_streak(user_id)
+    await check_and_award_achievements(user_id, 'streak')
+    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
+        await update_user_title(user_id, update.effective_chat.id, context)
+    
+    logging.info(f"MY_STATS: called by user {user_id}")
+    
+    try:
+        if user_id in last_responses:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+                del last_responses[user_id]
+            except Exception as e:
+                logging.warning(f"MY_STATS: failed to delete content: {e}")
+
+        stats = await get_user_stats(user_id)
+        logging.info(f"MY_STATS: stats = {stats}")
+        
+        streak_info = await get_streak_info(user_id)
+        logging.info(f"MY_STATS: streak_info = {streak_info}")
+        
+        position = await get_user_position(user_id)
+        logging.info(f"MY_STATS: position = {position}")
+        
+        avg_score = stats.get("average", 0) if stats else 0
+        total_fumbles = stats.get("count", 0) if stats else 0
+        signal_clicks = stats.get("signal_clicks", 0) if stats else 0
+        
+        level = get_level(avg_score)
+        level_name = get_level_name(level, lang)
+        
+        current_streak = streak_info.get("current_streak", 0) if streak_info else 0
+        
+        referrals = await get_referrals_count(user_id)
+        
+        text = get_text(
+            lang, "my_stats",
+            level,
+            level_name,
+            total_fumbles,
+            avg_score,
+            signal_clicks,
+            current_streak,
+            referrals,
+            position
+        )
+        
+        keyboard = get_my_stats_menu(lang)
+        
+        if user_id in menu_message_ids:
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=menu_message_ids[user_id],
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                logging.info(f"MY_STATS: menu edited for user {user_id}")
+            except Exception as e:
+                logging.error(f"MY_STATS: edit failed: {e}")
+                msg = await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                menu_message_ids[user_id] = msg.message_id
+        else:
+            msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            menu_message_ids[user_id] = msg.message_id
+            logging.info(f"MY_STATS: new menu sent for user {user_id}")
+            
+    except Exception as e:
+        logging.error(f"MY_STATS crashed for user {user_id}: {e}", exc_info=True)
+        await query.message.reply_text("❌ Ошибка при загрузке статистики. Попробуй позже.")
 
 def get_category(key: str) -> str:
     """Определяет категорию ачивки по ключу"""
