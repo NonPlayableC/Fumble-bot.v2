@@ -71,6 +71,7 @@ HELIUS_API_KEY = os.getenv("HELIUS_API_KEY", "")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 SITE_URL = "https://binty.xyz"          # замените на актуальный
 CHAT_URL = "https://t.me/bintychat"     # замените на актуальный
+STICKER_URL = "https://t.me/addstickers/BintyStickers"
 
 # Кэш для цены
 price_cache = {"price": None, "change": 0, "timestamp": 0}
@@ -129,7 +130,7 @@ def get_game_center_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar"),
          InlineKeyboardButton(t["quests"], callback_data="quests")],
         [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
-        [InlineKeyboardButton(t["sticker"], callback_data="sticker"),
+        [InlineKeyboardButton(t["sticker"], url=STICKER_URL),
          InlineKeyboardButton(t["referrals"], callback_data="referrals")],
         [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
@@ -1584,28 +1585,7 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard), 
         parse_mode=ParseMode.MARKDOWN
     )
-                                
-async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-    lang = await get_language(user_id)
-    await query.answer()
-    
-    # Ссылка на твой стикерпак. Замени 'BintyPack' на название твоего пакета в Telegram
-    # Ссылка обычно выглядит так: https://t.me/addstickers/NameOfPack
-    sticker_pack_link = "https://t.me/addstickers/bintystickers" 
-
-    text = get_text(lang, "sticker_pack_text")
-    
-    # Создаем кнопку с ссылкой
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📦 Добавить стикеры", url=sticker_pack_link)],
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
-    ])
-    
-    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=keyboard, parse_mode=ParseMode.MARKDOWN)
-            
+                                 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
