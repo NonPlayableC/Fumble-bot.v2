@@ -38,6 +38,10 @@ TEXTS = {
             "activities": "🎲 ACTIVITIES",
             "history": "📚 HISTORY",
             "social": "👥 SOCIAL",
+            "rules_accept": "💀 LET'S GO",
+            "disclaimer_accept": "👹 ACCEPT",
+            "disclaimer_decline": "🚪 GET LOST",
+            "changed_my_mind": "👹 I CHANGED MY MIND",
             
         },
         "ignore_text": [
@@ -729,6 +733,9 @@ TEXTS = {
         "no_active_quests": "No active quests. Come back tomorrow!",
         "recently_completed": "Recently Completed",
         "sticker_pack_text": "🎨 **Official BINTY Stickers**\n\nDecorate your chat with shame. Stickers for true losers. Click the button below to add the pack.",
+        "disclaimer": "⚠️ I AM NOT A FINANCIAL ADVISOR.\n\nI am your FINANCIAL ENEMY.\n\nEverything I say will lead to losses.\nYour money is not my problem.\n\nContinue?",
+        "rules": "📜 RULES OF SUFFERING\n\n📡 SIGNAL — bad advice. You lose money.\n💀 FUMBLE — admit your mistake. Earn shame points.\n🎭 HALL OF SUFFERING — your stats, achievements, quests.\n\nPress buttons. Lose money. Suffer.\n\nUnderstood?",
+        "goodbye_degen": "👋 Get lost then. Your money would've disappeared anyway. Come back when you're ready to suffer.",
                 
   },
     "ru": {
@@ -769,7 +776,11 @@ TEXTS = {
             "progress": "📊 ПРОГРЕСС",
             "activities": "🎲 АКТИВНОСТИ",
             "history": "📚 ИСТОРИЯ",
-            "social": "👥 СОЦИАЛЬНОЕ",            
+            "social": "👥 СОЦИАЛЬНОЕ",
+            "rules_accept": "💀 В БОЙ",
+            "disclaimer_accept": "👹 ПРИНИМАЮ",
+            "disclaimer_decline": "🚪 СВАЛИТЬ",
+            "changed_my_mind": "👹 Я ПЕРЕДУМАЛ",
             
         },
         "ignore_text": [
@@ -1462,7 +1473,10 @@ TEXTS = {
         "no_active_quests": "Нет активных квестов. Возвращайся завтра!",
         "recently_completed": "Недавно выполнено",
         "sticker_pack_text": "🎨 **Официальные стикеры BINTY**\n\nУкрась свой чат позором. Наклейки для истинных проигравших. Жми кнопку ниже, чтобы добавить пак.",
-                        
+        "disclaimer": "⚠️ Я НЕ ФИНАНСОВЫЙ СОВЕТНИК.\n\nЯ твой ФИНАНСОВЫЙ ВРАГ.\n\nВсё, что я скажу — приведёт к убыткам.\nТвои деньги — не моя проблема.\n\nПродолжаешь?",
+        "rules": "📜 ПРАВИЛА СТРАДАНИЙ\n\n📡 СИГНАЛ — плохой совет. Ты теряешь деньги.\n💀 ФАМБЛ — признай свою ошибку. Получи баллы позора.\n🎭 ЗАЛ СТРАДАНИЙ — твоя статистика, достижения, квесты.\n\nНажимай кнопки. Теряй деньги. Страдай.\n\nВсё понял?",
+        "goodbye_degen": "👋 Ну и вали. Твои деньги всё равно бы кончились. Возвращайся когда созреешь страдать.",
+                                                 
     },
     "es": {
         "buttons": {
@@ -1503,7 +1517,11 @@ TEXTS = {
             "activities": "🎲 ACTIVIDADES",
             "history": "📚 HISTORIA",
             "social": "👥 SOCIAL",
- 
+            "rules_accept": "💀 VAMOS",
+            "disclaimer_accept": "👹 ACEPTAR",
+            "disclaimer_decline": "🚪 LARGARSE",
+            "changed_my_mind": "👹 HE CAMBIADO DE OPINIÓN",
+
         },
         "ignore_text": [
             "¿Ves esos botones? Púlsalos. No soy tu terapeuta. 💀",
@@ -2211,7 +2229,10 @@ TEXTS = {
         "no_active_quests": "No hay misiones activas. ¡Vuelve mañana!",
         "recently_completed": "Completadas recientemente",
         "sticker_pack_text": "🎨 **Stickers Oficiales de BINTY**\n\nDecora tu chat con vergüenza. Stickers para verdaderos perdedores. Pulsa el botón de abajo para añadir el pack.",
-        
+        "disclaimer": "⚠️ NO SOY UN ASESOR FINANCIERO.\n\nSoy tu ENEMIGO FINANCIERO.\n\nTodo lo que diga te hará perder dinero.\nTu dinero no es mi problema.\n\n¿Continuar?",
+        "rules": "📜 REGLAS DEL SUFRIMIENTO\n\n📡 SEÑAL — mal consejo. Pierdes dinero.\n💀 FUMBLE — admite tu error. Gana puntos de vergüenza.\n🎭 SALA DEL SUFRIMIENTO — tus estadísticas, logros, misiones.\n\nPresiona botones. Pierde dinero. Sufre.\n\n¿Entendido?",
+        "goodbye_degen": "👋 Lárgate entonces. Tu dinero habría desaparecido de todos modos. Vuelve cuando estés listo para sufrir.",
+                        
     },
     "zh": {
         "buttons": {
@@ -2252,6 +2273,10 @@ TEXTS = {
             "activities": "🎲 活动",
             "history": "📚 历史",
             "social": "👥 社交",
+            "rules_accept": "💀 开始",
+            "disclaimer_accept": "👹 接受",
+            "disclaimer_decline": "🚪 滚蛋",
+            "changed_my_mind": "👹 我改主意了",
             
         },
         "ignore_text": [
@@ -2944,6 +2969,9 @@ TEXTS = {
         "no_active_quests": "没有活跃任务。明天再来！",
         "recently_completed": "最近完成",
         "sticker_pack_text": "🎨 **BINTY 官方表情包**\n\n用耻辱装饰你的聊天。真正失败者的贴纸。点击下方按钮添加。",
+        "disclaimer": "⚠️ 我不是财务顾问。\n\n我是你的财务敌人。\n\n我说的一切都会导致亏损。\n你的钱不关我的事。\n\n继续？",
+        "rules": "📜 苦难规则\n\n📡 信号 — 坏建议。你亏钱。\n💀 失误 — 承认错误。获得耻辱点数。\n🎭 苦难大厅 — 你的数据、成就、任务。\n\n按按钮。亏钱。受苦。\n\n明白了？",
+        "goodbye_degen": "👋 滚吧。反正你的钱也会消失。准备好受苦了再回来。",
         
     }
 }
