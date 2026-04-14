@@ -2188,18 +2188,42 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
     await update_streak(user_id)
+    
+    # Получаем статистику
+    stats = await get_user_stats(user_id)
+    level = get_level(stats["average"]) if stats else 1
+    level_name = get_level_name(level, lang)
+    position = await get_user_position(user_id)
+    fumbles_count = stats["count"] if stats else 0
+    
+    # Формируем текст
+    text = f"🎭 **{TEXTS[lang]['buttons']['hall_of_suffering']}**\n\n"
+    text += f"📊 {get_text(lang, 'level')}: {level_name} ({level}/5)\n"
+    text += f"🏆 {get_text(lang, 'position')}: #{position}\n"
+    text += f"💀 {get_text(lang, 'fumbles')}: {fumbles_count}"
+    
+    # Редактируем меню
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=menu_message_ids[user_id],
-                text=TEXTS[lang]["buttons"]["hall_of_suffering"],
+                text=text,
                 reply_markup=get_hall_of_suffering_menu(lang),
                 parse_mode=ParseMode.MARKDOWN
             )
-        except:
-            pass
+        except Exception as e:
+            logging.error(f"Hall of suffering edit failed: {e}")
+    else:
+        msg = await context.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=get_hall_of_suffering_menu(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        menu_message_ids[user_id] = msg.message_id
 
 async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
