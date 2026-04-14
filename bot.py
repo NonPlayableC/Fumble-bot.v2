@@ -2504,7 +2504,7 @@ async def my_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"MY_STATS crashed for user {user_id}: {e}", exc_info=True)
         await query.message.reply_text("❌ Ошибка при загрузке статистики. Попробуй позже.")
-
+        
 def get_category(key: str) -> str:
     """Определяет категорию ачивки по ключу"""
     if key in ["first_fumble", "silver_loser", "gold_loser", "platinum_loser", "king_of_bottom"]:
@@ -2519,36 +2519,7 @@ def get_category(key: str) -> str:
         return "social"
     else:
         return "special"
-
-         message_id=menu_message_ids[user_id],
-                    text=text,
-                    reply_markup=keyboard,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                logging.info(f"MY_STATS: menu edited for user {user_id}")
-            except Exception as e:
-                logging.error(f"MY_STATS: edit failed: {e}")
-                msg = await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    reply_markup=keyboard,
-                    parse_mode=ParseMode.MARKDOWN
-                )
-                menu_message_ids[user_id] = msg.message_id
-        else:
-            msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=text,
-                reply_markup=keyboard,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            menu_message_ids[user_id] = msg.message_id
-            logging.info(f"MY_STATS: new menu sent for user {user_id}")
-            
-    except Exception as e:
-        logging.error(f"MY_STATS crashed for user {user_id}: {e}", exc_info=True)
-        await query.message.reply_text("❌ Ошибка при загрузке статистики. Попробуй позже.")
-                                
+                                    
 async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
