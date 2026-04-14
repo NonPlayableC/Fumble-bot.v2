@@ -52,7 +52,9 @@ from supabase_client import (
     save_menu_id,
     get_menu_id,
     check_and_update_limits,
-    log_error
+    log_error,
+    save_certificate,
+    get_user_certificates
 )
     
 from texts import TEXTS, get_text, add_hooks
