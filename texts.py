@@ -19,8 +19,6 @@ TEXTS = {
             "site": "🌍 SITE",
             "chat": "💬 LOSERS CHAT",
             "help": "❓ HELP",
-            "game_center": "🎮 GAME CENTER",
-            "my_stats": "📊 MY STATS",
             "achievements": "🏅 ACHIEVEMENTS",
             "certificate": "📜 CERTIFICATE OF SHAME",
             "suffering_calendar": "📅 SUFFERING CALENDAR",
@@ -34,7 +32,12 @@ TEXTS = {
             "next": "Next ▶️",
             "manual_fumble": "🧠 Degen Confession",
             "share_certificate": "📤 SHARE",
-            "my_certificates": "📜 MY CERTIFICATES"
+            "my_certificates": "📜 MY CERTIFICATES",
+            "hall_of_suffering": "🎭 HALL OF SUFFERING",
+            "progress": "📊 PROGRESS",
+            "activities": "🎲 ACTIVITIES",
+            "history": "📚 HISTORY",
+            "social": "👥 SOCIAL",
             
         },
         "ignore_text": [
@@ -702,7 +705,12 @@ TEXTS = {
             "next": "Вперёд ▶️",
             "manual_fumble": "🧠 Исповедь дегена",
             "share_certificate": "📤 ПОДЕЛИТЬСЯ",
-            "my_certificates": "📜 МОИ СЕРТИФИКАТЫ"  
+            "my_certificates": "📜 МОИ СЕРТИФИКАТЫ",
+            "hall_of_suffering": "🎭 ЗАЛ СТРАДАНИЙ",
+            "progress": "📊 ПРОГРЕСС",
+            "activities": "🎲 АКТИВНОСТИ",
+            "history": "📚 ИСТОРИЯ",
+            "social": "👥 СОЦИАЛЬНОЕ",            
             
         },
         "ignore_text": [
@@ -1371,7 +1379,12 @@ TEXTS = {
             "next": "Siguiente ▶️",
             "manual_fumble": "🧠 Confesión Degenerada",
             "share_certificate": "📤 COMPARTIR",
-            "my_certificates": "📜 MIS CERTIFICADOS"
+            "my_certificates": "📜 MIS CERTIFICADOS",
+            "hall_of_suffering": "🎭 SALA DEL SUFRIMIENTO",
+            "progress": "📊 PROGRESO",
+            "activities": "🎲 ACTIVIDADES",
+            "history": "📚 HISTORIA",
+            "social": "👥 SOCIAL",
  
         },
         "ignore_text": [
@@ -2039,8 +2052,12 @@ TEXTS = {
             "next": "下一页 ▶️",
             "manual_fumble": "🧠 赌狗忏悔",
             "share_certificate": "📤 分享",
-            "my_certificates": "📜 我的证书"
-
+            "my_certificates": "📜 我的证书",
+            "hall_of_suffering": "🎭 苦难大厅",
+            "progress": "📊 进度",
+            "activities": "🎲 活动",
+            "history": "📚 历史",
+            "social": "👥 社交",
             
         },
         "ignore_text": [
