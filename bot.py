@@ -2823,6 +2823,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await my_certificates(update, context)
     elif data.startswith("view_cert_"): 
         await view_certificate(update, context)
+    elif data == "menu_progress": await show_progress_menu(update, context)
+    elif data == "menu_activities": await show_activities_menu(update, context)
+    elif data == "menu_history": await show_history_menu(update, context)
+    elif data == "menu_social": await show_social_menu(update, context)
             
 # ... конец button_callback ...
 
