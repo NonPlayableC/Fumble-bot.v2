@@ -155,6 +155,7 @@ def get_history_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history")],
         [InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
+        [InlineKeyboardButton(t["my_certificates"], callback_data="my_certificates")],
         [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
     ])
 
