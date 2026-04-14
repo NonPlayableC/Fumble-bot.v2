@@ -431,9 +431,6 @@ async def calculate_fumble_from_tx(tx: Dict[str, Any], wallet: str, lang: str = 
                 pass
             return 0.0
         
-        # УБРАЛИ loop = asyncio.new_event_loop()
-        # УБРАЛИ loop.run_until_complete
-        
         if is_buy:
             bought_mint = received["mint"]
             bought_amount = received["amount"]
@@ -1599,7 +1596,7 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Callback data должен содержать ID сертификата
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")])
     
     await context.bot.send_message(
         chat_id=chat_id, 
@@ -1979,7 +1976,7 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
             keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")])
     keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     if user_id in menu_message_ids:
@@ -2049,13 +2046,13 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     your_link = get_text(lang, 'your_link')
     info = get_text(lang, "referral_info")
     
-    text = f"👥 <b>{title}</b>\n\n"
+    text = f"<b>{title}</b>\n\n"
     text += f"▫️ {invited}: <b>{count}</b>\n"
     text += f"▫️ {your_link}:\n<code>{link}</code>\n\n"
     text += info
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2107,7 +2104,8 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "signal_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
     # Редактируем меню
@@ -2159,7 +2157,8 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="my_stats")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
     # Редактируем меню
@@ -2391,7 +2390,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n"
     
     keyboard = [
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="game_center")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
@@ -2586,8 +2585,8 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text += f"\n▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**"
     
     keyboard = [
-        [InlineKeyboardButton("↩️ " + get_button_text(lang, "back"), callback_data="game_center")],
-        [InlineKeyboardButton("🏠 " + get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
     if user_id in menu_message_ids:
