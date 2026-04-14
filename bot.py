@@ -139,7 +139,8 @@ def get_progress_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["achievements"], callback_data="achievements")],
         [InlineKeyboardButton(t["certificate"], callback_data="certificate")],
         [InlineKeyboardButton(t["suffering_calendar"], callback_data="suffering_calendar")],
-        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_activities_menu(lang: str) -> InlineKeyboardMarkup:
@@ -147,7 +148,8 @@ def get_activities_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["quests"], callback_data="quests")],
         [InlineKeyboardButton(t["manual_fumble"], callback_data="manual_fumble")],
-        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_history_menu(lang: str) -> InlineKeyboardMarkup:
@@ -156,14 +158,16 @@ def get_history_menu(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t["signal_history"], callback_data="signal_history")],
         [InlineKeyboardButton(t["fumble_history"], callback_data="fumble_history")],
         [InlineKeyboardButton(t["my_certificates"], callback_data="my_certificates")],
-        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 def get_social_menu(lang: str) -> InlineKeyboardMarkup:
     t = TEXTS[lang]["buttons"]
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t["referrals"], callback_data="referrals")],
-        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")]
+        [InlineKeyboardButton(t["back"], callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(t["back_to_menu"], callback_data="back_to_menu")]
     ])
 
 # ==================== ПРИВЕТСТВИЯ ====================
@@ -941,7 +945,8 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --------------------------------------------
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
     
     await update_streak(user_id)
@@ -985,7 +990,8 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --------------------------------------------
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
     
     await update_streak(user_id)
@@ -1098,7 +1104,8 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     lang = await get_language(user_id)
     
     if not await check_rate_limit(user_id):
-        await context.bot.send_message(chat_id=user_id, text=TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
     
     score = random.randint(0, 10)
@@ -1143,7 +1150,8 @@ async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
     
     global cached_fumble_questions
@@ -1329,9 +1337,12 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
+    
     address = await get_wallet_address(user_id)
     if not address:
         await delete_previous_and_send(chat_id, user_id, get_text(lang, "portfolio_no_wallet"), context)
@@ -1365,7 +1376,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
         
     await update_streak(user_id)
@@ -1397,7 +1409,8 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
         
     await update_streak(user_id)
@@ -1424,7 +1437,8 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
     
     await update_streak(user_id)
@@ -1491,7 +1505,8 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
         
     await update_streak(user_id)
@@ -1596,7 +1611,8 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Callback data должен содержать ID сертификата
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")]),
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     await context.bot.send_message(
         chat_id=chat_id, 
@@ -1736,7 +1752,8 @@ async def subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
         
     await update_streak(user_id)
@@ -1773,7 +1790,8 @@ async def unsubscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     if not await check_rate_limit(user_id):
-        await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
+        alert_text = get_text(lang, "rate_limit_alert")
+        await query.answer(alert_text, show_alert=True)
         return
         
     await update_streak(user_id)
@@ -1976,7 +1994,7 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
             keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_activities_menu")]),
     keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     if user_id in menu_message_ids:
@@ -2052,7 +2070,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += info
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_social_menu")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2104,7 +2122,7 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "signal_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2157,7 +2175,7 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2390,7 +2408,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n"
     
     keyboard = [
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_progress_menu")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
@@ -2585,7 +2603,7 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text += f"\n▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**"
     
     keyboard = [
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="hall_of_suffering")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_progress_menu")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
