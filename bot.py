@@ -1732,7 +1732,7 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Callback data должен содержать ID сертификата
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"view_cert_{cert['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")]),
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_history")]),
     keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
     await context.bot.send_message(
@@ -2115,8 +2115,8 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name = quest.get(f"name_{lang}", quest.get("name_en", "Quest"))[:15]
             keyboard.append([InlineKeyboardButton(f"🎁 {name}", callback_data=f"claim_quest_{uq['id']}")])
     
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_activities_menu")]),
-    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_activities")]),
+    keyboard.append([InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])    
     
     if user_id in menu_message_ids:
         try:
@@ -2191,7 +2191,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += info
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_social_menu")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_social")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2243,7 +2243,7 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "signal_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_history")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2296,7 +2296,7 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "fumble_history_text", "\n".join(lines))
     
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_history_menu")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_history")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ])
     
@@ -2529,7 +2529,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n"
     
     keyboard = [
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_progress_menu")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_progress")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
@@ -2724,7 +2724,7 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text += f"\n▫️ {get_text(lang, 'longest_streak')}: **{info['max_streak']}**"
     
     keyboard = [
-        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="get_progress_menu")],
+        [InlineKeyboardButton(get_button_text(lang, "back"), callback_data="menu_progress")],
         [InlineKeyboardButton(get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
     ]
     
