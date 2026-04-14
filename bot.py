@@ -913,20 +913,18 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-        # --- НОВОЕ: ПРОВЕРКА ЛИМИТА ---
+    # --- ПРОВЕРКА ЛИМИТА (Отступы исправлены) ---
     limit_check = await check_and_update_limits(user_id, 'signal')
     if not limit_check['allowed']:
-        # Если лимит исчерпан, отправляем сообщение и выходим
         await query.answer(limit_check['message'], show_alert=True)
         return
-    # ------------------------------
+    # --------------------------------------------
     
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
         return
     
     await update_streak(user_id)
-    
     await update_quest_progress(user_id, 'signal_count', 1)
     
     # Удаляем предыдущее контентное сообщение
@@ -949,7 +947,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await save_signal_history(user_id, signal_text)
     await check_and_award_achievements(user_id, 'streak')
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
+        await update_user_title(user_id, update.effective_chat.id, context)        
         
 async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Умный фамбл: анализ реальной транзакции через Helius/Solscan"""
@@ -959,14 +957,12 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-        # --- НОВОЕ: ПРОВЕРКА ЛИМИТА ---
-    # Умный фамбл (анализ кошелька) можно оставить без лимита или сделать отдельный тип
-    # Но для ручного/общего проверим:
+    # --- ПРОВЕРКА ЛИМИТА (Отступы исправлены) ---
     limit_check = await check_and_update_limits(user_id, 'fumble')
     if not limit_check['allowed']:
         await query.answer(limit_check['message'], show_alert=True)
         return
-    # ------------------------------
+    # --------------------------------------------
     
     if not await check_rate_limit(user_id):
         await query.message.reply_text(TEXTS[lang].get("rate_limit", "⏳ Too many requests."))
@@ -1860,6 +1856,8 @@ async def update_user_title(user_id: int, chat_id: int, context: ContextTypes.DE
 
 async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user_id = query.from_user.id # ДОБАВЛЕНО: определяем user_id
+    lang = await get_language(user_id) # Используем текущий язык
     await query.answer()
     
     await update_streak(user_id)
