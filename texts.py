@@ -609,6 +609,14 @@ TEXTS = {
             "\n\n📍 {} place. Your home in the leaderboard.",
             "\n\n📍 Position: {}. Say thank you."
         ],
+        "rate_limit_alert": [
+            "⏳ Slow down, degen. Your liver can't handle this much suffering.",
+            "⏳ Where's the fire? The market is already bleeding. Take a breath.",
+            "⏳ Too fast. Your portfolio can't keep up with your stupidity.",
+            "⏳ Tap slower. I can't laugh at you this quickly.",
+            "⏳ Chill. Losses will find you. They always do.",
+            "⏳ Suffering overdose. Breathe in. Breathe out. Now suffer again.",
+        ],
         "leaderboard_titles": {
             "1": "👑 King of the Bottom",
             "2": "💀 Elite Loser",
@@ -1285,6 +1293,14 @@ TEXTS = {
             "\n\n📍 {} место. Твой дом в лидерборде.",
             "\n\n📍 Позиция: {}. Скажи спасибо."
         ],
+        "rate_limit_alert": [
+            "⏳ Не части, деген. Твоя печень не выдержит столько страданий.",
+            "⏳ Куда гоним? Рынок и так в минусе. Передохни.",
+            "⏳ Слишком быстро. Твой портфель не успевает краснеть.",
+            "⏳ Жми медленнее. Я не успеваю смеяться над тобой.",
+            "⏳ Остынь. Убыток сам тебя найдёт, не торопись.",
+            "⏳ Передоз страданий. Сделай вдох. Выдох. Теперь можно.",
+        ],
         "leaderboard_titles": {
             "1": "👑 Король дна",
             "2": "💀 Элитный лузер",
@@ -1959,6 +1975,14 @@ TEXTS = {
             "\n\n📍 Puesto #{}. Llévalo con orgullo. O con vergüenza. Es lo mismo.",
             "\n\n📍 {} lugar. Tu hogar en la tabla.",
             "\n\n📍 Posición: {}. Di gracias."
+        ],
+        "rate_limit_alert": [
+            "⏳ Más despacio, degen. Tu hígado no aguanta tanto sufrimiento.",
+            "⏳ ¿A dónde vas? El mercado ya está en rojo. Respira.",
+            "⏳ Demasiado rápido. Tu cartera no puede seguir tu estupidez.",
+            "⏳ Toca más lento. No puedo reírme de ti tan rápido.",
+            "⏳ Cálmate. Las pérdidas te encontrarán. Siempre lo hacen.",
+            "⏳ Sobredosis de sufrimiento. Inhala. Exhala. Ahora sufre otra vez.",
         ],
         "leaderboard_titles": {
             "1": "👑 Rey del suelo",
@@ -2635,6 +2659,14 @@ TEXTS = {
             "\n\n📍 第#{}名。带着骄傲穿着它。或者耻辱。都一样。",
             "\n\n📍 第{}名。你在排行榜上的家。",
             "\n\n📍 位置: {}。说谢谢。"
+        ],
+        "rate_limit_alert": [
+            "⏳ 慢点，赌徒。你的肝受不了这么多痛苦。",
+            "⏳ 急什么？市场已经在流血了。喘口气。",
+            "⏳ 太快了。你的钱包跟不上你的愚蠢。",
+            "⏳ 点慢点。我笑你都没这么快。",
+            "⏳ 冷静。亏损会找到你的。它们总是如此。",
+            "⏳ 痛苦过量。吸气。呼气。现在继续受苦。",
         ],
         "leaderboard_titles": {
             "1": "👑 地板之王",
