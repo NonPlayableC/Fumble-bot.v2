@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подписчики — BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <h2>📧 Подписчики</h2>
+        
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <button class="btn btn-primary" onclick="openBroadcastModal()">📢 Массовая рассылка</button>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Всего подписчиков: <span id="totalCount">—</span></h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Имя</th>
+                        <th>Язык</th>
+                        <th>Дата подписки</th>
+                    </tr>
+                </thead>
+                <tbody id="subscribersTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Модальное окно рассылки -->
+    <div class="modal fade" id="broadcastModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Массовая рассылка</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Сообщение</label>
+                        <textarea id="broadcastMessage" class="form-control" rows="5" placeholder="Текст рассылки..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Язык (оставьте пустым для всех)</label>
+                        <select id="broadcastLang" class="form-select">
+                            <option value="">Все языки</option>
+                            <option value="ru">RU</option>
+                            <option value="en">EN</option>
+                            <option value="es">ES</option>
+                            <option value="zh">ZH</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        Будет отправлено <span id="recipientCount">0</span> получателям.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" onclick="sendBroadcast()">Отправить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let broadcastModal;
+        let subscribers = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            broadcastModal = new bootstrap.Modal(document.getElementById('broadcastModal'));
+            loadSubscribers();
+        });
+        
+        async function loadSubscribers() {
+            const res = await fetch('/api/subscribers');
+            subscribers = await res.json();
+            
+            document.getElementById('totalCount').textContent = subscribers.length;
+            
+            const tbody = document.getElementById('subscribersTable');
+            tbody.innerHTML = subscribers.map(s => `
+                <tr>
+                    <td>${s.user_id}</td>
+                    <td>@${s.username || '-'}</td>
+                    <td>${s.first_name || '-'}</td>
+                    <td>${s.language || 'en'}</td>
+                    <td>${s.subscription_date ? s.subscription_date.substring(0, 10) : '-'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function openBroadcastModal() {
+            document.getElementById('broadcastMessage').value = '';
+            document.getElementById('broadcastLang').value = '';
+            updateRecipientCount();
+            broadcastModal.show();
+        }
+        
+        function updateRecipientCount() {
+            const lang = document.getElementById('broadcastLang').value;
+            const filtered = lang ? subscribers.filter(s => s.language === lang) : subscribers;
+            document.getElementById('recipientCount').textContent = filtered.length;
+        }
+        
+        document.getElementById('broadcastLang').addEventListener('change', updateRecipientCount);
+        
+        async function sendBroadcast() {
+            const message = document.getElementById('broadcastMessage').value;
+            const lang = document.getElementById('broadcastLang').value;
+            
+            if (!message) return alert('Введите сообщение');
+            if (!confirm(`Отправить сообщение ${document.getElementById('recipientCount').textContent} получателям?`)) return;
+            
+            await fetch('/api/broadcast', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message, lang: lang || null})
+            });
+            
+            broadcastModal.hide();
+            alert('Рассылка запущена');
+        }
+    </script>
+</body>
+</html>
