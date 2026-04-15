@@ -5,42 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Квесты — BINTY Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
-            <div class="d-flex">
-                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
-                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            <span class="navbar-brand"><i class="bi bi-robot"></i> BINTY Admin</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white-50 me-3" id="currentTime"></span>
+                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i> Выйти</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-3">
-        <h2>📋 Управление квестами</h2>
-        
-        <div class="row mb-3">
-            <div class="col-md-8">
-                <button class="btn btn-success" onclick="openModal(null)">+ Новый квест</button>
-            </div>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Название (EN)</th>
-                        <th>Тип</th>
-                        <th>Цель</th>
-                        <th>Награда (очки)</th>
-                        <th>Активен</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="questsTable"></tbody>
-            </table>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block sidebar">
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/memes"><i class="bi bi-emoji-laughing"></i> Мемы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/stickers"><i class="bi bi-sticky"></i> Стикеры</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/quests"><i class="bi bi-list-check"></i> Квесты</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/signals"><i class="bi bi-broadcast"></i> Сигналы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/fumble"><i class="bi bi-dice-5"></i> Вопросы фамбла</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/achievements"><i class="bi bi-trophy"></i> Достижения</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/subscribers"><i class="bi bi-envelope"></i> Подписчики</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logs"><i class="bi bi-exclamation-triangle"></i> Логи ошибок</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="page-title"><i class="bi bi-list-check me-2"></i>Управление квестами</h2>
+                    <button class="btn btn-success" onclick="openModal(null)"><i class="bi bi-plus-lg"></i> Новый квест</button>
+                </div>
+
+                <div class="card fade-in">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Название (EN)</th>
+                                        <th>Тип</th>
+                                        <th>Цель</th>
+                                        <th>Награда</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="questsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -49,35 +73,31 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalTitle">Новый квест</h5>
+                    <h5 class="modal-title" id="modalTitle"><i class="bi bi-plus-circle me-2"></i>Новый квест</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="questId">
                     
-                    <ul class="nav nav-tabs">
+                    <ul class="nav nav-tabs mb-3">
                         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-en">EN</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ru">RU</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-es">ES</a></li>
                         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-zh">ZH</a></li>
                     </ul>
                     
-                    <div class="tab-content mt-3">
+                    <div class="tab-content">
                         <div class="tab-pane fade show active" id="tab-en">
-                            <label class="form-label">Название (EN)</label>
-                            <input type="text" id="name_en" class="form-control">
+                            <input type="text" id="name_en" class="form-control" placeholder="Название на английском">
                         </div>
                         <div class="tab-pane fade" id="tab-ru">
-                            <label class="form-label">Название (RU)</label>
-                            <input type="text" id="name_ru" class="form-control">
+                            <input type="text" id="name_ru" class="form-control" placeholder="Название на русском">
                         </div>
                         <div class="tab-pane fade" id="tab-es">
-                            <label class="form-label">Название (ES)</label>
-                            <input type="text" id="name_es" class="form-control">
+                            <input type="text" id="name_es" class="form-control" placeholder="Название на испанском">
                         </div>
                         <div class="tab-pane fade" id="tab-zh">
-                            <label class="form-label">Название (ZH)</label>
-                            <input type="text" id="name_zh" class="form-control">
+                            <input type="text" id="name_zh" class="form-control" placeholder="Название на китайском">
                         </div>
                     </div>
                     
@@ -94,18 +114,18 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Значение (цель)</label>
-                            <input type="number" id="condition_value" class="form-control">
+                            <input type="number" id="condition_value" class="form-control" value="1">
                         </div>
                     </div>
                     
                     <div class="row mt-3">
                         <div class="col-md-4">
                             <label class="form-label">Награда (очки)</label>
-                            <input type="number" id="reward_points" class="form-control">
+                            <input type="number" id="reward_points" class="form-control" value="0">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Награда ($BINTY)</label>
-                            <input type="number" id="reward_binty" class="form-control">
+                            <input type="number" id="reward_binty" class="form-control" value="0">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Длительность (часов)</label>
@@ -119,8 +139,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" onclick="saveQuest()">Сохранить</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuest()"><i class="bi bi-check-lg"></i> Сохранить</button>
                 </div>
             </div>
         </div>
@@ -130,37 +150,48 @@
     <script>
         let questModal;
         let quests = [];
-        
+
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString('ru-RU');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
         document.addEventListener('DOMContentLoaded', () => {
             questModal = new bootstrap.Modal(document.getElementById('questModal'));
             loadQuests();
         });
-        
+
         async function loadQuests() {
             const res = await fetch('/api/quests');
             quests = await res.json();
             
             const tbody = document.getElementById('questsTable');
+            if (quests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">Нет квестов</td></tr>';
+                return;
+            }
+            
             tbody.innerHTML = quests.map(q => `
                 <tr>
                     <td>${q.id}</td>
                     <td>${q.name_en || '-'}</td>
-                    <td>${q.condition_type}</td>
+                    <td><span class="badge bg-secondary">${q.condition_type}</span></td>
                     <td>${q.condition_value}</td>
-                    <td>${q.reward_points}</td>
-                    <td>${q.is_active ? '✅' : '❌'}</td>
+                    <td>${q.reward_points} pts ${q.reward_binty ? '+ $' + q.reward_binty : ''}</td>
+                    <td>${q.is_active ? '<span class="badge badge-success">Активен</span>' : '<span class="badge badge-danger">Выкл</span>'}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="openModal(${q.id})">✏️</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteQuest(${q.id})">🗑️</button>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openModal(${q.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteQuest(${q.id})"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
         }
-        
+
         function openModal(id) {
             const quest = id ? quests.find(q => q.id === id) : null;
             document.getElementById('questId').value = id || '';
-            document.getElementById('modalTitle').textContent = id ? 'Редактировать квест' : 'Новый квест';
+            document.getElementById('modalTitle').innerHTML = id ? '<i class="bi bi-pencil-square me-2"></i>Редактировать квест' : '<i class="bi bi-plus-circle me-2"></i>Новый квест';
             
             document.getElementById('name_en').value = quest?.name_en || '';
             document.getElementById('name_ru').value = quest?.name_ru || '';
@@ -175,7 +206,7 @@
             
             questModal.show();
         }
-        
+
         async function saveQuest() {
             const id = document.getElementById('questId').value;
             const data = {
@@ -203,7 +234,7 @@
             questModal.hide();
             loadQuests();
         }
-        
+
         async function deleteQuest(id) {
             if (!confirm('Удалить квест?')) return;
             await fetch(`/api/quests/${id}`, {method: 'DELETE'});
