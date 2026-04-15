@@ -6,93 +6,107 @@
     <title>Дашборд — BINTY Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
-            <div class="d-flex">
-                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            <span class="navbar-brand"><i class="bi bi-robot"></i> BINTY Admin</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white-50 me-3" id="currentTime"></span>
+                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i> Выйти</a>
             </div>
         </div>
     </nav>
 
     <div class="container-fluid">
         <div class="row">
-            <nav class="col-md-2 d-md-block bg-light sidebar">
-                <div class="position-sticky pt-3">
+            <!-- Боковое меню -->
+            <nav class="col-md-2 d-md-block sidebar">
+                <div class="position-sticky">
                     <ul class="nav flex-column">
-                        <li class="nav-item"><a class="nav-link active" href="/">📊 Дашборд</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/users">👥 Пользователи</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/memes">😂 Мемы</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/stickers">🎯 Стикеры</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/quests">📋 Квесты</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/signals">📡 Сигналы</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/fumble">🎲 Вопросы фамбла</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/achievements">🏆 Достижения</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/subscribers">📧 Подписчики</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/logs">📜 Логи ошибок</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/memes"><i class="bi bi-emoji-laughing"></i> Мемы</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/stickers"><i class="bi bi-sticky"></i> Стикеры</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/quests"><i class="bi bi-list-check"></i> Квесты</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/signals"><i class="bi bi-broadcast"></i> Сигналы</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/fumble"><i class="bi bi-dice-5"></i> Вопросы фамбла</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/achievements"><i class="bi bi-trophy"></i> Достижения</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/subscribers"><i class="bi bi-envelope"></i> Подписчики</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/logs"><i class="bi bi-exclamation-triangle"></i> Логи ошибок</a>
+                        </li>
                     </ul>
                 </div>
             </nav>
 
-            <main class="col-md-10 ms-sm-auto px-md-4">
-                <div class="pt-3 pb-2 mb-3 border-bottom">
-                    <h2>Дашборд</h2>
-                </div>
+            <!-- Основной контент -->
+            <main class="col-md-10 ms-sm-auto">
+                <h2 class="page-title"><i class="bi bi-speedometer2 me-2"></i>Дашборд</h2>
 
                 <!-- Статистика -->
                 <div class="row">
                     <div class="col-md-3">
-                        <div class="card text-white bg-primary mb-3">
-                            <div class="card-header">👥 Пользователи</div>
-                            <div class="card-body">
-                                <h3 class="card-title" id="userCount">—</h3>
-                            </div>
+                        <div class="stat-card primary">
+                            <div class="stat-value" id="userCount">—</div>
+                            <div class="stat-label"><i class="bi bi-people me-1"></i>Пользователи</div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-white bg-danger mb-3">
-                            <div class="card-header">💀 Фамблы</div>
-                            <div class="card-body">
-                                <h3 class="card-title" id="fumbleCount">—</h3>
-                            </div>
+                        <div class="stat-card danger">
+                            <div class="stat-value" id="fumbleCount">—</div>
+                            <div class="stat-label"><i class="bi bi-dice-5 me-1"></i>Фамблы</div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-white bg-success mb-3">
-                            <div class="card-header">📡 Сигналы</div>
-                            <div class="card-body">
-                                <h3 class="card-title" id="signalCount">—</h3>
-                            </div>
+                        <div class="stat-card success">
+                            <div class="stat-value" id="signalCount">—</div>
+                            <div class="stat-label"><i class="bi bi-broadcast me-1"></i>Сигналы</div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-white bg-warning mb-3">
-                            <div class="card-header">📧 Подписчики</div>
-                            <div class="card-body">
-                                <h3 class="card-title" id="subscriberCount">—</h3>
-                            </div>
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="subscriberCount">—</div>
+                            <div class="stat-label"><i class="bi bi-envelope me-1"></i>Подписчики</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Системные действия -->
+                <!-- Система и бэкап -->
                 <div class="row mt-4">
                     <div class="col-md-6">
                         <div class="card">
-                            <div class="card-header">🔄 Система</div>
+                            <div class="card-header"><i class="bi bi-gear me-2"></i>Система</div>
                             <div class="card-body">
                                 <button class="btn btn-warning" onclick="clearCache()">
                                     <i class="bi bi-arrow-repeat"></i> Сбросить кэш бота
                                 </button>
-                                <p class="text-muted mt-2 small">Изменения вступят в силу мгновенно без перезагрузки.</p>
+                                <p class="text-muted small mt-2">Изменения вступят в силу мгновенно.</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="card">
-                            <div class="card-header">💾 Резервное копирование</div>
+                            <div class="card-header"><i class="bi bi-archive me-2"></i>Резервное копирование</div>
                             <div class="card-body">
                                 <button class="btn btn-outline-primary" onclick="exportData()">
                                     <i class="bi bi-download"></i> Экспорт JSON
@@ -101,7 +115,6 @@
                                 <button class="btn btn-outline-secondary ms-2" onclick="document.getElementById('importFile').click()">
                                     <i class="bi bi-upload"></i> Импорт JSON
                                 </button>
-                                <p class="text-muted mt-2 small">Экспорт/импорт мемов, стикеров, квестов, сигналов, вопросов и достижений.</p>
                             </div>
                         </div>
                     </div>
@@ -109,11 +122,11 @@
 
                 <!-- Последние пользователи -->
                 <div class="row mt-4">
-                    <div class="col-md-12">
+                    <div class="col-12">
                         <div class="card">
-                            <div class="card-header">🆕 Последние пользователи</div>
-                            <div class="card-body">
-                                <table class="table table-sm">
+                            <div class="card-header"><i class="bi bi-person-plus me-2"></i>Последние пользователи</div>
+                            <div class="card-body p-0">
+                                <table class="table mb-0">
                                     <thead>
                                         <tr>
                                             <th>ID</th>
@@ -123,8 +136,13 @@
                                             <th>Создан</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="recentUsers"></tbody>
+                                    <tbody id="recentUsers">
+                                        <tr><td colspan="5" class="text-center py-3">Загрузка...</td></tr>
+                                    </tbody>
                                 </table>
+                            </div>
+                            <div class="card-footer text-end">
+                                <a href="/users" class="btn btn-sm btn-outline-primary">Все пользователи <i class="bi bi-arrow-right"></i></a>
                             </div>
                         </div>
                     </div>
@@ -132,11 +150,11 @@
 
                 <!-- Последние ошибки -->
                 <div class="row mt-4">
-                    <div class="col-md-12">
+                    <div class="col-12">
                         <div class="card">
-                            <div class="card-header">⚠️ Последние ошибки</div>
-                            <div class="card-body">
-                                <table class="table table-sm">
+                            <div class="card-header"><i class="bi bi-exclamation-triangle me-2"></i>Последние ошибки</div>
+                            <div class="card-body p-0">
+                                <table class="table mb-0">
                                     <thead>
                                         <tr>
                                             <th>Время</th>
@@ -144,9 +162,13 @@
                                             <th>Сообщение</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="recentErrors"></tbody>
+                                    <tbody id="recentErrors">
+                                        <tr><td colspan="3" class="text-center py-3">Загрузка...</td></tr>
+                                    </tbody>
                                 </table>
-                                <a href="/logs" class="btn btn-sm btn-outline-secondary">Все логи →</a>
+                            </div>
+                            <div class="card-footer text-end">
+                                <a href="/logs" class="btn btn-sm btn-outline-primary">Все логи <i class="bi bi-arrow-right"></i></a>
                             </div>
                         </div>
                     </div>
@@ -157,12 +179,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            loadStats();
-            loadRecentUsers();
-            loadRecentErrors();
-        });
+        // Время
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('ru-RU');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
 
+        // Статистика
         async function loadStats() {
             const res = await fetch('/api/stats');
             const data = await res.json();
@@ -176,15 +201,19 @@
             const res = await fetch('/api/recent-users');
             const users = await res.json();
             const tbody = document.getElementById('recentUsers');
-            tbody.innerHTML = users.map(u => `
-                <tr>
-                    <td>${u.user_id}</td>
-                    <td>@${u.username || '-'}</td>
-                    <td>${u.first_name || '-'}</td>
-                    <td>${u.language || 'en'}</td>
-                    <td>${u.created_at ? u.created_at.substring(0, 10) : '-'}</td>
-                </tr>
-            `).join('');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Нет пользователей</td></tr>';
+            } else {
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td><code>${u.user_id}</code></td>
+                        <td>@${u.username || '-'}</td>
+                        <td>${u.first_name || '-'}</td>
+                        <td><span class="badge badge-info">${u.language || 'en'}</span></td>
+                        <td>${u.created_at ? u.created_at.substring(0, 10) : '-'}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         async function loadRecentErrors() {
@@ -192,12 +221,12 @@
             const data = await res.json();
             const tbody = document.getElementById('recentErrors');
             if (data.logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Нет ошибок</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-success py-3"><i class="bi bi-check-circle me-1"></i>Нет ошибок</td></tr>';
             } else {
                 tbody.innerHTML = data.logs.map(l => `
                     <tr>
                         <td>${l.created_at ? l.created_at.substring(0, 19).replace('T', ' ') : '-'}</td>
-                        <td><span class="badge bg-danger">${l.error_type || '-'}</span></td>
+                        <td><span class="badge badge-danger">${l.error_type || '-'}</span></td>
                         <td>${(l.error_message || '').substring(0, 80)}</td>
                     </tr>
                 `).join('');
@@ -205,7 +234,7 @@
         }
 
         async function clearCache() {
-            if (!confirm('Сбросить кэш бота? Изменения применятся мгновенно.')) return;
+            if (!confirm('Сбросить кэш бота?')) return;
             await fetch('/api/clear-cache', {method: 'POST'});
             alert('✅ Кэш сброшен');
         }
@@ -213,7 +242,6 @@
         async function exportData() {
             const res = await fetch('/api/export');
             const data = await res.json();
-            
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -225,22 +253,23 @@
         async function importData(input) {
             const file = input.files[0];
             if (!file) return;
-            
             const text = await file.text();
             const data = JSON.parse(text);
-            
             if (!confirm('⚠️ Импорт заменит существующие данные. Продолжить?')) return;
-            
             await fetch('/api/import', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             });
-            
             alert('✅ Импорт завершен');
             input.value = '';
             loadStats();
         }
+
+        // Загрузка
+        loadStats();
+        loadRecentUsers();
+        loadRecentErrors();
     </script>
 </body>
 </html>
