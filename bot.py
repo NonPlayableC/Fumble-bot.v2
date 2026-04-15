@@ -11,7 +11,7 @@ from datetime import datetime, date, timedelta, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 from typing import Optional, Tuple, List, Dict, Any
-
+    
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 import qrcode
 
@@ -56,6 +56,8 @@ from supabase_client import (
     log_error,
     save_certificate,
     get_user_certificates
+    log_error,
+    notify_admin_error
 )
     
 from texts import TEXTS, get_text, add_hooks
