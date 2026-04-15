@@ -166,5 +166,36 @@ def api_delete_sticker(sticker_id):
     supabase.table('stickers').delete().eq('id', sticker_id).execute()
     return jsonify({'success': True})
 
+@app.route('/quests')
+@requires_auth
+def quests_page():
+    return render_template('quests.html')
+
+@app.route('/api/quests')
+@requires_auth
+def api_quests():
+    res = supabase.table('quests').select('*').order('id', desc=True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/quests', methods=['POST'])
+@requires_auth
+def api_create_quest():
+    data = request.json
+    supabase.table('quests').insert(data).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/quests/<int:quest_id>', methods=['PUT'])
+@requires_auth
+def api_update_quest(quest_id):
+    data = request.json
+    supabase.table('quests').update(data).eq('id', quest_id).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/quests/<int:quest_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_quest(quest_id):
+    supabase.table('quests').delete().eq('id', quest_id).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
