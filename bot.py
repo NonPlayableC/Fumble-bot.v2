@@ -995,7 +995,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🇨🇳 中文", callback_data="onboard_lang_zh")]
         ])
         await update.message.reply_text("🌐 Choose your language / Выбери язык:", reply_markup=kb_lang)
-        return  # Ждём выбора языка
+        return
     
     # 6. Для старых — удаляем старое меню
     if user_id in last_responses:
@@ -1015,6 +1015,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
     await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
     
+    # 8. Меню
+    msg = await update.message.reply_text(
+        TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
+        reply_markup=await get_main_menu(user_id, lang),
+        parse_mode=ParseMode.MARKDOWN
+    )
+    menu_message_ids[user_id] = msg.message_id
+        
     # 8. Меню
     msg = await update.message.reply_text(
         TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
