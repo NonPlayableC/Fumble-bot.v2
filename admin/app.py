@@ -117,6 +117,30 @@ def api_search_users():
     query = request.args.get('q', '')
     res = supabase.table('users').select('*, user_stats(*)').or_(f"username.ilike.%{query}%,first_name.ilike.%{query}%,user_id.eq.{query if query.isdigit() else 0}").limit(50).execute()
     return jsonify(res.data)
+    
+@app.route('/memes')
+@requires_auth
+def memes_page():
+    return render_template('memes.html')
+
+@app.route('/api/memes')
+@requires_auth
+def api_memes():
+    res = supabase.table('memes').select('*').order('id', desc=True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/memes', methods=['POST'])
+@requires_auth
+def api_add_meme():
+    data = request.json
+    supabase.table('memes').insert({'url': data['url']}).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/memes/<int:meme_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_meme(meme_id):
+    supabase.table('memes').delete().eq('id', meme_id).execute()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
