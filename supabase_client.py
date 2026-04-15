@@ -1067,17 +1067,23 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
         
 # ==================== ЛОГИРОВАНИЕ ОШИБОК ====================
 
-async def log_error(user_id: int, error_text: str):
-    """Сохраняет ошибку в БД"""
+async def log_error(user_id: int = None, error_type: str = None, error_message: str = None, traceback: str = None, context: str = None) -> bool:
+    """Логирует ошибку в таблицу error_logs"""
     try:
-        supabase.table("error_logs").insert({
+        data = {
             "user_id": user_id,
-            "error_text": error_text,
+            "error_type": error_type,
+            "error_message": error_message[:1000] if error_message else None,
+            "traceback": traceback[:2000] if traceback else None,
+            "context": context,
             "created_at": datetime.now().isoformat()
-        }).execute()
+        }
+        supabase.table("error_logs").insert(data).execute()
+        return True
     except Exception as e:
-        logging.error(f"Failed to log error: {e}")
-
+        logging.error(f"Failed to log error to Supabase: {e}")
+        return False
+        
 # ==================== ТЕКСТЫ ИЗ БД ====================
 
 async def get_translation(key: str, lang: str = "en") -> Optional[Any]:
