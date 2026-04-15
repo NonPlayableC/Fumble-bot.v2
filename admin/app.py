@@ -276,5 +276,36 @@ def api_delete_fumble_question(q_id):
     supabase.table('fumble_questions').delete().eq('id', q_id).execute()
     return jsonify({'success': True})
 
+@app.route('/achievements')
+@requires_auth
+def achievements_page():
+    return render_template('achievements.html')
+
+@app.route('/api/achievements-list')
+@requires_auth
+def api_achievements_list():
+    res = supabase.table('achievements_list').select('*').order('achievement_key').execute()
+    return jsonify(res.data)
+
+@app.route('/api/achievements-list', methods=['POST'])
+@requires_auth
+def api_create_achievement():
+    data = request.json
+    supabase.table('achievements_list').insert(data).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/achievements-list/<key>', methods=['PUT'])
+@requires_auth
+def api_update_achievement(key):
+    data = request.json
+    supabase.table('achievements_list').update(data).eq('achievement_key', key).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/achievements-list/<key>', methods=['DELETE'])
+@requires_auth
+def api_delete_achievement(key):
+    supabase.table('achievements_list').delete().eq('achievement_key', key).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
