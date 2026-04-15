@@ -70,5 +70,19 @@
                 document.getElementById('fumbleCount').textContent = d.fumbles;
             });
     </script>
+        <div class="card">
+        <div class="card-header">Система</div>
+        <div class="card-body">
+            <button class="btn btn-warning" onclick="clearCache()">🔄 Сбросить кэш бота</button>
+        </div>
+    </div>
+    
+    <script>
+    async function clearCache() {
+        if (!confirm('Сбросить кэш бота? Изменения применятся мгновенно.')) return;
+        await fetch('/api/clear-cache', {method: 'POST'});
+        alert('Кэш сброшен');
+    }
+    </script>
 </body>
 </html>
