@@ -228,5 +228,53 @@ def api_delete_signal(signal_id):
     supabase.table('signals').delete().eq('id', signal_id).execute()
     return jsonify({'success': True})
 
+@app.route('/fumble')
+@requires_auth
+def fumble_page():
+    return render_template('fumble_questions.html')
+
+@app.route('/api/fumble-questions')
+@requires_auth
+def api_fumble_questions():
+    res = supabase.table('fumble_questions').select('*, fumble_options(*)').order('id', desc=True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/fumble-questions', methods=['POST'])
+@requires_auth
+def api_create_fumble_question():
+    data = request.json
+    options = data.pop('options', [])
+    
+    q_res = supabase.table('fumble_questions').insert(data).execute()
+    question_id = q_res.data[0]['id']
+    
+    for opt in options:
+        opt['question_id'] = question_id
+        supabase.table('fumble_options').insert(opt).execute()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/fumble-questions/<int:q_id>', methods=['PUT'])
+@requires_auth
+def api_update_fumble_question(q_id):
+    data = request.json
+    options = data.pop('options', [])
+    
+    supabase.table('fumble_questions').update(data).eq('id', q_id).execute()
+    supabase.table('fumble_options').delete().eq('question_id', q_id).execute()
+    
+    for opt in options:
+        opt['question_id'] = q_id
+        supabase.table('fumble_options').insert(opt).execute()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/fumble-questions/<int:q_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_fumble_question(q_id):
+    supabase.table('fumble_options').delete().eq('question_id', q_id).execute()
+    supabase.table('fumble_questions').delete().eq('id', q_id).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
