@@ -197,5 +197,36 @@ def api_delete_quest(quest_id):
     supabase.table('quests').delete().eq('id', quest_id).execute()
     return jsonify({'success': True})
 
+@app.route('/signals')
+@requires_auth
+def signals_page():
+    return render_template('signals.html')
+
+@app.route('/api/signals')
+@requires_auth
+def api_signals():
+    res = supabase.table('signals').select('*').order('id', desc=True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/signals', methods=['POST'])
+@requires_auth
+def api_create_signal():
+    data = request.json
+    supabase.table('signals').insert(data).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/signals/<int:signal_id>', methods=['PUT'])
+@requires_auth
+def api_update_signal(signal_id):
+    data = request.json
+    supabase.table('signals').update(data).eq('id', signal_id).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/signals/<int:signal_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_signal(signal_id):
+    supabase.table('signals').delete().eq('id', signal_id).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
