@@ -13,6 +13,8 @@ url = os.environ.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY")
 supabase: Client = None
 
+_translations_cache = {}
+
 def init_supabase():
     """Инициализирует клиент Supabase"""
     global supabase
@@ -1064,6 +1066,75 @@ async def check_and_award_achievements(user_id: int, action: str, value: Any = N
                         
     except Exception as e:
         logging.error(f"Error in check_and_award_achievements: {e}")
+        
+#кэш
+async def load_translations(lang: str = None) -> Dict[str, str]:
+    """Загружает переводы из БД в кэш"""
+    global _translations_cache
+    try:
+        query = supabase.table("translations").select("lang, key, value")
+        if lang:
+            query = query.eq("lang", lang)
+        res = query.execute()
+        
+        for row in res.data:
+            if row["lang"] not in _translations_cache:
+                _translations_cache[row["lang"]] = {}
+            _translations_cache[row["lang"]][row["key"]] = row["value"]
+        
+        return _translations_cache
+    except Exception as e:
+        logging.error(f"Failed to load translations: {e}")
+        return {}
+
+async def get_translation(lang: str, key: str) -> str:
+    """Получает перевод из кэша, при отсутствии — из БД, иначе — ключ"""
+    # Проверяем кэш
+    if lang in _translations_cache and key in _translations_cache[lang]:
+        return _translations_cache[lang][key]
+    
+    # Пробуем загрузить из БД
+    try:
+        res = supabase.table("translations").select("value").eq("lang", lang).eq("key", key).execute()
+        if res.data:
+            value = res.data[0]["value"]
+            if lang not in _translations_cache:
+                _translations_cache[lang] = {}
+            _translations_cache[lang][key] = value
+            return value
+    except Exception as e:
+        logging.error(f"Failed to get translation {lang}.{key}: {e}")
+    
+    # Fallback на английский
+    if lang != "en":
+        return await get_translation("en", key)
+    
+    return key
+
+async def set_translation(lang: str, key: str, value: str) -> bool:
+    """Сохраняет или обновляет перевод"""
+    try:
+        supabase.table("translations").upsert({
+            "lang": lang,
+            "key": key,
+            "value": value,
+            "updated_at": datetime.now().isoformat()
+        }, on_conflict="lang,key").execute()
+        
+        # Обновляем кэш
+        if lang not in _translations_cache:
+            _translations_cache[lang] = {}
+        _translations_cache[lang][key] = value
+        return True
+    except Exception as e:
+        logging.error(f"Failed to set translation {lang}.{key}: {e}")
+        return False
+
+async def clear_translations_cache():
+    """Сбрасывает кэш переводов"""
+    global _translations_cache
+    _translations_cache = {}
+    logging.info("Translations cache cleared")
         
 # ==================== ЛОГИРОВАНИЕ ОШИБОК ====================
 
