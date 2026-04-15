@@ -3011,4 +3011,3 @@ def main():
     logging.info("🚀 BINTY Agent starting with polling...")
     print("🚀 Bot is starting...")
     app.run_polling()
-    print("❌ Bot stopped!")
