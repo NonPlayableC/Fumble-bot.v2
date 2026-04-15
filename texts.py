@@ -37,12 +37,8 @@ TEXTS = {
             "progress": "📊 PROGRESS",
             "activities": "🎲 ACTIVITIES",
             "history": "📚 HISTORY",
-            "social": "👥 SOCIAL",
-            "rules_accept": "💀 LET'S GO",
-            "disclaimer_accept": "👹 ACCEPT",
-            "disclaimer_decline": "🚪 GET LOST",
-            "changed_my_mind": "👹 I CHANGED MY MIND",
-            
+            "social": "👥 SOCIAL"
+                  
         },
         "ignore_text": [
             "See those buttons? Press them. I'm not your therapist. 💀",
@@ -736,7 +732,12 @@ TEXTS = {
         "disclaimer": "⚠️ I AM NOT A FINANCIAL ADVISOR.\n\nI am your FINANCIAL ENEMY.\n\nEverything I say will lead to losses.\nYour money is not my problem.\n\nContinue?",
         "rules": "📜 RULES OF SUFFERING\n\n📡 SIGNAL — bad advice. You lose money.\n💀 FUMBLE — admit your mistake. Earn shame points.\n🎭 HALL OF SUFFERING — your stats, achievements, quests.\n\nPress buttons. Lose money. Suffer.\n\nUnderstood?",
         "goodbye_degen": "👋 Get lost then. Your money would've disappeared anyway. Come back when you're ready to suffer.",
-                
+        "rules_accept": "💀 LET'S GO",
+        "disclaimer_accept": "👹 ACCEPT",
+        "disclaimer_decline": "🚪 GET LOST",
+        "changed_my_mind": "👹 I CHANGED MY MIND",
+
+                      
   },
     "ru": {
         "buttons": {
@@ -777,11 +778,7 @@ TEXTS = {
             "activities": "🎲 АКТИВНОСТИ",
             "history": "📚 ИСТОРИЯ",
             "social": "👥 СОЦИАЛЬНОЕ",
-            "rules_accept": "💀 В БОЙ",
-            "disclaimer_accept": "👹 ПРИНИМАЮ",
-            "disclaimer_decline": "🚪 СВАЛИТЬ",
-            "changed_my_mind": "👹 Я ПЕРЕДУМАЛ",
-            
+                    
         },
         "ignore_text": [
             "Видишь кнопки? Нажимай. Я не психотерапевт. 💀",
@@ -1476,7 +1473,11 @@ TEXTS = {
         "disclaimer": "⚠️ Я НЕ ФИНАНСОВЫЙ СОВЕТНИК.\n\nЯ твой ФИНАНСОВЫЙ ВРАГ.\n\nВсё, что я скажу — приведёт к убыткам.\nТвои деньги — не моя проблема.\n\nПродолжаешь?",
         "rules": "📜 ПРАВИЛА СТРАДАНИЙ\n\n📡 СИГНАЛ — плохой совет. Ты теряешь деньги.\n💀 ФАМБЛ — признай свою ошибку. Получи баллы позора.\n🎭 ЗАЛ СТРАДАНИЙ — твоя статистика, достижения, квесты.\n\nНажимай кнопки. Теряй деньги. Страдай.\n\nВсё понял?",
         "goodbye_degen": "👋 Ну и вали. Твои деньги всё равно бы кончились. Возвращайся когда созреешь страдать.",
-                                                 
+        "rules_accept": "💀 В БОЙ",
+        "disclaimer_accept": "👹 ПРИНИМАЮ",
+        "disclaimer_decline": "🚪 СВАЛИТЬ",
+        "changed_my_mind": "👹 Я ПЕРЕДУМАЛ",
+                                                                                
     },
     "es": {
         "buttons": {
@@ -1516,11 +1517,7 @@ TEXTS = {
             "progress": "📊 PROGRESO",
             "activities": "🎲 ACTIVIDADES",
             "history": "📚 HISTORIA",
-            "social": "👥 SOCIAL",
-            "rules_accept": "💀 VAMOS",
-            "disclaimer_accept": "👹 ACEPTAR",
-            "disclaimer_decline": "🚪 LARGARSE",
-            "changed_my_mind": "👹 HE CAMBIADO DE OPINIÓN",
+            "social": "👥 SOCIAL"
 
         },
         "ignore_text": [
@@ -2232,7 +2229,11 @@ TEXTS = {
         "disclaimer": "⚠️ NO SOY UN ASESOR FINANCIERO.\n\nSoy tu ENEMIGO FINANCIERO.\n\nTodo lo que diga te hará perder dinero.\nTu dinero no es mi problema.\n\n¿Continuar?",
         "rules": "📜 REGLAS DEL SUFRIMIENTO\n\n📡 SEÑAL — mal consejo. Pierdes dinero.\n💀 FUMBLE — admite tu error. Gana puntos de vergüenza.\n🎭 SALA DEL SUFRIMIENTO — tus estadísticas, logros, misiones.\n\nPresiona botones. Pierde dinero. Sufre.\n\n¿Entendido?",
         "goodbye_degen": "👋 Lárgate entonces. Tu dinero habría desaparecido de todos modos. Vuelve cuando estés listo para sufrir.",
-                        
+        "rules_accept": "💀 VAMOS",
+        "disclaimer_accept": "👹 ACEPTAR",
+        "disclaimer_decline": "🚪 LARGARSE",
+        "changed_my_mind": "👹 HE CAMBIADO DE OPINIÓN",
+                                        
     },
     "zh": {
         "buttons": {
@@ -2272,11 +2273,7 @@ TEXTS = {
             "progress": "📊 进度",
             "activities": "🎲 活动",
             "history": "📚 历史",
-            "social": "👥 社交",
-            "rules_accept": "💀 开始",
-            "disclaimer_accept": "👹 接受",
-            "disclaimer_decline": "🚪 滚蛋",
-            "changed_my_mind": "👹 我改主意了",
+            "social": "👥 社交"
             
         },
         "ignore_text": [
@@ -2972,6 +2969,10 @@ TEXTS = {
         "disclaimer": "⚠️ 我不是财务顾问。\n\n我是你的财务敌人。\n\n我说的一切都会导致亏损。\n你的钱不关我的事。\n\n继续？",
         "rules": "📜 苦难规则\n\n📡 信号 — 坏建议。你亏钱。\n💀 失误 — 承认错误。获得耻辱点数。\n🎭 苦难大厅 — 你的数据、成就、任务。\n\n按按钮。亏钱。受苦。\n\n明白了？",
         "goodbye_degen": "👋 滚吧。反正你的钱也会消失。准备好受苦了再回来。",
+        "rules_accept": "💀 开始",
+        "disclaimer_accept": "👹 接受",
+        "disclaimer_decline": "🚪 滚蛋",
+        "changed_my_mind": "👹 我改主意了",
         
     }
 }
