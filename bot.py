@@ -1045,7 +1045,7 @@ async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     
     await query.edit_message_text(rules_text, reply_markup=kb_rules, parse_mode=ParseMode.MARKDOWN)
-
+    
 async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1053,10 +1053,8 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    # Удаляем сообщение с правилами
     await query.message.delete()
     
-    # Показываем главное меню
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1074,7 +1072,7 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
- 
+     
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1087,7 +1085,7 @@ async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ])
     
     await query.edit_message_text(goodbye_text, reply_markup=kb_comeback, parse_mode=ParseMode.MARKDOWN)
-   
+       
 async def set_onboarding_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1096,14 +1094,14 @@ async def set_onboarding_language(update: Update, context: ContextTypes.DEFAULT_
     await set_language(user_id, lang)
     await query.answer()
     
-    # Показываем дисклеймер на выбранном языке
     disclaimer_text = get_text(lang, "disclaimer")
     kb_disclaimer = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
          InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
     ])
-    await query.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
-                 
+    
+    await query.edit_message_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
+                     
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
