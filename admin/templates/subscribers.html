@@ -5,50 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Подписчики — BINTY Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
+    <nav class="navbar navbar-dark">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
-            <div class="d-flex">
-                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
-                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            <span class="navbar-brand"><i class="bi bi-robot"></i> BINTY Admin</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white-50 me-3" id="currentTime"></span>
+                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i> Выйти</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-3">
-        <h2>📧 Подписчики</h2>
-        
-        <div class="row mb-3">
-            <div class="col-md-8">
-                <button class="btn btn-primary" onclick="openBroadcastModal()">📢 Массовая рассылка</button>
-            </div>
-        </div>
-        
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5>Всего подписчиков: <span id="totalCount">—</span></h5>
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block sidebar">
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/memes"><i class="bi bi-emoji-laughing"></i> Мемы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/stickers"><i class="bi bi-sticky"></i> Стикеры</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/quests"><i class="bi bi-list-check"></i> Квесты</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/signals"><i class="bi bi-broadcast"></i> Сигналы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/fumble"><i class="bi bi-dice-5"></i> Вопросы фамбла</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/achievements"><i class="bi bi-trophy"></i> Достижения</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/subscribers"><i class="bi bi-envelope"></i> Подписчики</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logs"><i class="bi bi-exclamation-triangle"></i> Логи ошибок</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="page-title"><i class="bi bi-envelope me-2"></i>Подписчики</h2>
+                    <button class="btn btn-primary" onclick="openBroadcastModal()"><i class="bi bi-megaphone"></i> Массовая рассылка</button>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card primary">
+                            <div class="stat-value" id="totalCount">—</div>
+                            <div class="stat-label"><i class="bi bi-people me-1"></i>Всего подписчиков</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Имя</th>
-                        <th>Язык</th>
-                        <th>Дата подписки</th>
-                    </tr>
-                </thead>
-                <tbody id="subscribersTable"></tbody>
-            </table>
+
+                <div class="card fade-in">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Username</th>
+                                        <th>Имя</th>
+                                        <th>Язык</th>
+                                        <th>Дата подписки</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subscribersTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -57,31 +80,32 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Массовая рассылка</h5>
+                    <h5 class="modal-title"><i class="bi bi-megaphone me-2"></i>Массовая рассылка</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Сообщение</label>
+                        <label class="form-label"><i class="bi bi-chat-text me-1"></i>Сообщение</label>
                         <textarea id="broadcastMessage" class="form-control" rows="5" placeholder="Текст рассылки..."></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Язык (оставьте пустым для всех)</label>
+                        <label class="form-label"><i class="bi bi-translate me-1"></i>Язык (пусто — всем)</label>
                         <select id="broadcastLang" class="form-select">
                             <option value="">Все языки</option>
-                            <option value="ru">RU</option>
-                            <option value="en">EN</option>
-                            <option value="es">ES</option>
-                            <option value="zh">ZH</option>
+                            <option value="ru">RU — Русский</option>
+                            <option value="en">EN — English</option>
+                            <option value="es">ES — Español</option>
+                            <option value="zh">ZH — 中文</option>
                         </select>
                     </div>
                     <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-1"></i>
                         Будет отправлено <span id="recipientCount">0</span> получателям.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-danger" onclick="sendBroadcast()">Отправить</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" onclick="sendBroadcast()"><i class="bi bi-send"></i> Отправить</button>
                 </div>
             </div>
         </div>
@@ -91,12 +115,18 @@
     <script>
         let broadcastModal;
         let subscribers = [];
-        
+
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString('ru-RU');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
         document.addEventListener('DOMContentLoaded', () => {
             broadcastModal = new bootstrap.Modal(document.getElementById('broadcastModal'));
             loadSubscribers();
         });
-        
+
         async function loadSubscribers() {
             const res = await fetch('/api/subscribers');
             subscribers = await res.json();
@@ -104,38 +134,47 @@
             document.getElementById('totalCount').textContent = subscribers.length;
             
             const tbody = document.getElementById('subscribersTable');
+            if (subscribers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Нет подписчиков</td></tr>';
+                return;
+            }
+            
             tbody.innerHTML = subscribers.map(s => `
                 <tr>
-                    <td>${s.user_id}</td>
-                    <td>@${s.username || '-'}</td>
+                    <td><code>${s.user_id}</code></td>
+                    <td><strong>@${s.username || '-'}</strong></td>
                     <td>${s.first_name || '-'}</td>
-                    <td>${s.language || 'en'}</td>
+                    <td><span class="badge badge-info">${s.language || 'en'}</span></td>
                     <td>${s.subscription_date ? s.subscription_date.substring(0, 10) : '-'}</td>
                 </tr>
             `).join('');
         }
-        
+
         function openBroadcastModal() {
             document.getElementById('broadcastMessage').value = '';
             document.getElementById('broadcastLang').value = '';
             updateRecipientCount();
             broadcastModal.show();
         }
-        
+
         function updateRecipientCount() {
             const lang = document.getElementById('broadcastLang').value;
             const filtered = lang ? subscribers.filter(s => s.language === lang) : subscribers;
             document.getElementById('recipientCount').textContent = filtered.length;
         }
-        
+
         document.getElementById('broadcastLang').addEventListener('change', updateRecipientCount);
-        
+
         async function sendBroadcast() {
-            const message = document.getElementById('broadcastMessage').value;
+            const message = document.getElementById('broadcastMessage').value.trim();
             const lang = document.getElementById('broadcastLang').value;
             
             if (!message) return alert('Введите сообщение');
             if (!confirm(`Отправить сообщение ${document.getElementById('recipientCount').textContent} получателям?`)) return;
+            
+            const btn = document.querySelector('#broadcastModal .btn-danger');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Отправка...';
             
             await fetch('/api/broadcast', {
                 method: 'POST',
@@ -144,7 +183,9 @@
             });
             
             broadcastModal.hide();
-            alert('Рассылка запущена');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send"></i> Отправить';
+            alert('✅ Рассылка запущена');
         }
     </script>
 </body>
