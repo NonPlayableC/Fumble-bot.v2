@@ -986,25 +986,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = get_welcome(lang, is_new)
     await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
     
-    kb_lang = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇬🇧 English", callback_data="onboard_lang_en")],
-        [InlineKeyboardButton("🇷🇺 Русский", callback_data="onboard_lang_ru")],
-        [InlineKeyboardButton("🇪🇸 Español", callback_data="onboard_lang_es")],
-        [InlineKeyboardButton("🇨🇳 中文", callback_data="onboard_lang_zh")]
-    ])
-    await update.message.reply_text("🌐 Choose your language:", reply_markup=kb_lang)
-    
-    # 5. Для новых — дисклеймер с кнопками
+    # 5. Для новых — выбор языка
     if is_new:
-        disclaimer_text = get_text(lang, "disclaimer")
-        kb_disclaimer = InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
-             InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
+        kb_lang = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🇬🇧 English", callback_data="onboard_lang_en")],
+            [InlineKeyboardButton("🇷🇺 Русский", callback_data="onboard_lang_ru")],
+            [InlineKeyboardButton("🇪🇸 Español", callback_data="onboard_lang_es")],
+            [InlineKeyboardButton("🇨🇳 中文", callback_data="onboard_lang_zh")]
         ])
-        await update.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
-        return  # Ждём решения пользователя
+        await update.message.reply_text("🌐 Choose your language / Выбери язык:", reply_markup=kb_lang)
+        return  # Ждём выбора языка
     
-    # 6. Для старых — удаляем старое меню (если было)
+    # 6. Для старых — удаляем старое меню
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -1029,7 +1022,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-     
+         
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1084,7 +1077,23 @@ async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ])
     
     await query.edit_message_text(goodbye_text, reply_markup=kb_comeback, parse_mode=ParseMode.MARKDOWN)
-        
+   
+async def set_onboarding_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.from_user.id
+    lang = query.data.replace("onboard_lang_", "")
+    
+    await set_language(user_id, lang)
+    await query.answer()
+    
+    # Показываем дисклеймер на выбранном языке
+    disclaimer_text = get_text(lang, "disclaimer")
+    kb_disclaimer = InlineKeyboardMarkup([
+        [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
+         InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
+    ])
+    await query.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
+                 
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1562,6 +1571,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         error_message=str(context.error)[:300]
     )
                 
+
+
 # Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
 # language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
 # quests, referrals, signal_history, fumble_history) аналогично добавляются.
@@ -2937,10 +2948,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "accept_rules":
         await finish_onboarding(update, context)
     elif data.startswith("onboard_lang_"):
-        lang = data.replace("onboard_lang_", "")
-        user_id = query.from_user.id
-        await set_language(user_id, lang)
-        await show_disclaimer(query, lang)
+        await set_onboarding_language(update, context)
                               
 # ... конец button_callback ...
 
