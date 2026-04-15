@@ -307,5 +307,97 @@ def api_delete_achievement(key):
     supabase.table('achievements_list').delete().eq('achievement_key', key).execute()
     return jsonify({'success': True})
 
+# Подписчики
+@app.route('/subscribers')
+@requires_auth
+def subscribers_page():
+    return render_template('subscribers.html')
+
+@app.route('/api/subscribers')
+@requires_auth
+def api_subscribers():
+    res = supabase.table('users').select('user_id, username, first_name, language, subscription_date').eq('subscribed', True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/broadcast', methods=['POST'])
+@requires_auth
+def api_broadcast():
+    data = request.json
+    message = data['message']
+    lang = data.get('lang')
+    
+    query = supabase.table('users').select('user_id').eq('subscribed', True)
+    if lang:
+        query = query.eq('language', lang)
+    
+    res = query.execute()
+    user_ids = [u['user_id'] for u in res.data]
+    
+    # Здесь нужно вызвать функцию отправки сообщений через бота
+    # asyncio.run(send_broadcast(user_ids, message))
+    
+    return jsonify({'success': True, 'count': len(user_ids)})
+
+# Логи ошибок
+@app.route('/logs')
+@requires_auth
+def logs_page():
+    return render_template('logs.html')
+
+@app.route('/api/error-logs')
+@requires_auth
+def api_error_logs():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    offset = (page - 1) * per_page
+    
+    res = supabase.table('error_logs').select('*').order('created_at', desc=True).range(offset, offset + per_page - 1).execute()
+    count_res = supabase.table('error_logs').select('*', count='exact').execute()
+    
+    return jsonify({
+        'logs': res.data,
+        'total': count_res.count or 0,
+        'page': page,
+        'per_page': per_page
+    })
+
+@app.route('/api/error-logs', methods=['DELETE'])
+@requires_auth
+def api_clear_error_logs():
+    supabase.table('error_logs').delete().neq('id', 0).execute()
+    return jsonify({'success': True})
+    
+@app.route('/api/clear-cache', methods=['POST'])
+@requires_auth
+def api_clear_cache():
+    # Здесь нужно реализовать механизм сброса кэша
+    # Например, записать в БД флаг или отправить сигнал боту
+    supabase.table('system').upsert({'key': 'cache_version', 'value': datetime.now().isoformat()}).execute()
+    return jsonify({'success': True})
+    
+@app.route('/api/export')
+@requires_auth
+def api_export():
+    tables = ['memes', 'stickers', 'quests', 'signals', 'fumble_questions', 'fumble_options', 'achievements_list']
+    export_data = {}
+    
+    for table in tables:
+        res = supabase.table(table).select('*').execute()
+        export_data[table] = res.data
+    
+    return jsonify(export_data)
+
+@app.route('/api/import', methods=['POST'])
+@requires_auth
+def api_import():
+    data = request.json
+    
+    for table, rows in data.items():
+        if rows:
+            supabase.table(table).delete().neq('id', 0).execute()
+            supabase.table(table).insert(rows).execute()
+    
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
