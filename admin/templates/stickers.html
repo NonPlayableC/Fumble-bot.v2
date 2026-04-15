@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стикеры — BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <h2>🎯 Управление стикерами</h2>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Добавить стикер</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">File ID (от Telegram)</label>
+                            <input type="text" id="stickerFileId" class="form-control" placeholder="CAACAgIAAxkB...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пак (regular / gif)</label>
+                            <select id="stickerPack" class="form-select">
+                                <option value="regular">Regular</option>
+                                <option value="gif">GIF</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="addSticker()">Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <ul class="nav nav-tabs">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#regular">Regular</a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#gif">GIF</a></li>
+        </ul>
+        
+        <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="regular">
+                <div class="row" id="regularStickers"></div>
+            </div>
+            <div class="tab-pane fade" id="gif">
+                <div class="row" id="gifStickers"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadStickers);
+        
+        async function loadStickers() {
+            const res = await fetch('/api/stickers');
+            const stickers = await res.json();
+            
+            const regular = stickers.filter(s => s.pack === 'regular');
+            const gif = stickers.filter(s => s.pack === 'gif');
+            
+            document.getElementById('regularStickers').innerHTML = regular.map(s => `
+                <div class="col-md-2 mb-2">
+                    <div class="card">
+                        <div class="card-body p-2">
+                            <code>${s.file_id.substring(0, 20)}...</code>
+                            <button class="btn btn-sm btn-danger w-100 mt-2" onclick="deleteSticker(${s.id})">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('gifStickers').innerHTML = gif.map(s => `
+                <div class="col-md-2 mb-2">
+                    <div class="card">
+                        <div class="card-body p-2">
+                            <code>${s.file_id.substring(0, 20)}...</code>
+                            <button class="btn btn-sm btn-danger w-100 mt-2" onclick="deleteSticker(${s.id})">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function addSticker() {
+            const file_id = document.getElementById('stickerFileId').value;
+            const pack = document.getElementById('stickerPack').value;
+            
+            if (!file_id) return alert('Введите File ID');
+            
+            await fetch('/api/stickers', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({file_id, pack})
+            });
+            
+            document.getElementById('stickerFileId').value = '';
+            loadStickers();
+        }
+        
+        async function deleteSticker(id) {
+            if (!confirm('Удалить стикер?')) return;
+            await fetch(`/api/stickers/${id}`, {method: 'DELETE'});
+            loadStickers();
+        }
+    </script>
+</body>
+</html>
