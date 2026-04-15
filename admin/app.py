@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 from functools import wraps
-from flask import Flask, request, render_template, redirect, url_for, session, jsonify
+from flask import Flask, request, render_template, redirect, url_for, session, jsonify, Response
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -23,7 +23,7 @@ def check_auth(username, password):
     return username == ADMIN_USER and password == ADMIN_PASS
 
 def authenticate():
-    return response('Access denied', 401, {'WWW-Authenticate': 'Basic realm="Admin"'})
+    return Response('Access denied', 401, {'WWW-Authenticate': 'Basic realm="Admin"'})
 
 def requires_auth(f):
     @wraps(f)
