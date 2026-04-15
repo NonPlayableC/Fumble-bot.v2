@@ -1234,7 +1234,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         await update_quest_progress(user_id, 'smart_fumble', 1)
-        score, reason, tx_details = calculate_fumble_from_tx(tx, wallet, lang)
+        score, reason, tx_details = await calculate_fumble_from_tx(tx, wallet, lang)
         await save_fumble(user_id, score, type='smart', details=json.dumps(tx_details))
         
         result_text = get_text(lang, "fumble_smart_result", score, reason)
@@ -2899,10 +2899,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "unsubscribe": await unsubscribe(update, context)
     elif data == "help": await help_command(update, context)
     elif data == "hall_of_suffering": await hall_of_suffering(update, context)
-    elif data == "menu_progress": await show_progress_menu(update, context)
-    elif data == "menu_activities": await show_activities_menu(update, context)
-    elif data == "menu_history": await show_history_menu(update, context)
-    elif data == "menu_social": await show_social_menu(update, context)
     elif data == "achievements": await achievements(update, context)
     elif data == "certificate": await certificate(update, context)
     elif data == "suffering_calendar": await suffering_calendar(update, context)
