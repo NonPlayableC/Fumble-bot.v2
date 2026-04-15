@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/logout" class="btn btn-outline-light btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link active" href="/">📊 Дашборд</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/users">👥 Пользователи</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/memes">😂 Мемы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/stickers">🎯 Стикеры</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/quests">📋 Квесты</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/signals">📡 Сигналы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/fumble">🎲 Вопросы фамбла</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/achievements">🏆 Достижения</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/subscribers">📧 Подписчики</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logs">📜 Логи ошибок</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto px-md-4">
+                <div class="pt-3 pb-2 mb-3 border-bottom">
+                    <h2>Дашборд</h2>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-white bg-primary mb-3">
+                            <div class="card-header">Пользователи</div>
+                            <div class="card-body">
+                                <h5 class="card-title" id="userCount">—</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-danger mb-3">
+                            <div class="card-header">Фамблы</div>
+                            <div class="card-body">
+                                <h5 class="card-title" id="fumbleCount">—</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        fetch('/api/stats')
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('userCount').textContent = d.users;
+                document.getElementById('fumbleCount').textContent = d.fumbles;
+            });
+    </script>
+</body>
+</html>
