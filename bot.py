@@ -986,6 +986,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = get_welcome(lang, is_new)
     await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
     
+    kb_lang = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇬🇧 English", callback_data="onboard_lang_en")],
+        [InlineKeyboardButton("🇷🇺 Русский", callback_data="onboard_lang_ru")],
+        [InlineKeyboardButton("🇪🇸 Español", callback_data="onboard_lang_es")],
+        [InlineKeyboardButton("🇨🇳 中文", callback_data="onboard_lang_zh")]
+    ])
+    await update.message.reply_text("🌐 Choose your language:", reply_markup=kb_lang)
+    
     # 5. Для новых — дисклеймер с кнопками
     if is_new:
         disclaimer_text = get_text(lang, "disclaimer")
@@ -1034,7 +1042,6 @@ async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     
     await query.edit_message_text(rules_text, reply_markup=kb_rules, parse_mode=ParseMode.MARKDOWN)
-
 
 async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2929,7 +2936,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_rules(update, context)
     elif data == "accept_rules":
         await finish_onboarding(update, context)
-                   
+    elif data.startswith("onboard_lang_"):
+        lang = data.replace("onboard_lang_", "")
+        user_id = query.from_user.id
+        await set_language(user_id, lang)
+        await show_disclaimer(query, lang)
+                              
 # ... конец button_callback ...
 
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
