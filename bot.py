@@ -990,8 +990,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_new:
         disclaimer_text = get_text(lang, "disclaimer")
         kb_disclaimer = InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
-             InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
+           # [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
+            # InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
+            [InlineKeyboardButton("👹 ПРИНИМАЮ", callback_data="accept_disclaimer"),
+            InlineKeyboardButton("🚪 СВАЛИТЬ", callback_data="decline_disclaimer")]
         ])
         await update.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
         return  # Ждём решения пользователя
