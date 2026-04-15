@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import re
 import json
+import traceback as tb
 import threading
 from datetime import datetime, date, timedelta, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -626,6 +627,7 @@ def generate_portfolio_chart_real(history, current_amount, current_value):
     image.save(img_bytes, format='PNG')
     img_bytes.seek(0)
     return img_bytes
+    
     
 # ==================== СЕРТИФИКАТ ПОЗОРА ====================
 def generate_certificate_of_shame(user_id: int, username: str, level_name: str,
@@ -1515,6 +1517,32 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = get_text(lang, "portfolio", 0, 0, 0)
         final_text = add_hooks(lang, text)
         await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Логирует ошибки в Supabase и выводит в консоль"""
+    logging.error(msg="Exception while handling an update:", exc_info=context.error)
+    
+    tb_list = tb.format_exception(None, context.error, context.error.__traceback__)
+    tb_string = "".join(tb_list)
+    
+    user_id = None
+    if update and hasattr(update, 'effective_user') and update.effective_user:
+        user_id = update.effective_user.id
+    
+    update_data = None
+    if update:
+        try:
+            update_data = update.to_dict()
+        except:
+            update_data = str(update)[:500]
+    
+    await log_error(
+        user_id=user_id,
+        error_type=type(context.error).__name__,
+        error_message=str(context.error)[:500],
+        traceback=tb_string[:1500],
+        context=json.dumps(update_data)[:500] if update_data else None
+    )
                 
 # Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
 # language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
@@ -2917,6 +2945,8 @@ def main():
     cached_fumble_questions = asyncio.run(fetch_fumble_questions())
     
     app = Application.builder().token(TOKEN).build()
+    
+    app.add_error_handler(error_handler)
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_message))
