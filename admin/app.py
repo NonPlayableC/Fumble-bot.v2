@@ -59,5 +59,64 @@ def api_stats():
         'fumbles': fumbles.count
     })
 
+# Страница пользователей
+@app.route('/users')
+@requires_auth
+def users_page():
+    return render_template('users.html')
+
+# API: получить всех пользователей
+@app.route('/api/users')
+@requires_auth
+def api_users():
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    offset = (page - 1) * per_page
+    
+    res = supabase.table('users').select('*, user_stats(*)').order('created_at', desc=True).range(offset, offset + per_page - 1).execute()
+    
+    count_res = supabase.table('users').select('*', count='exact').execute()
+    total = count_res.count if count_res.count else 0
+    
+    return jsonify({
+        'users': res.data,
+        'total': total,
+        'page': page,
+        'per_page': per_page
+    })
+
+# API: обновить пользователя
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@requires_auth
+def api_update_user(user_id):
+    data = request.json
+    
+    updates = {}
+    if 'blocked' in data:
+        updates['blocked'] = data['blocked']
+    if 'streak_days' in data:
+        updates['streak_days'] = data['streak_days']
+    
+    if updates:
+        supabase.table('users').update(updates).eq('user_id', user_id).execute()
+    
+    # Обновить очки фамбла
+    if 'total_score' in data:
+        supabase.table('user_stats').update({'total_score': data['total_score']}).eq('user_id', user_id).execute()
+    
+    # Обновить баланс BINTY
+    if 'balance' in data:
+        supabase.table('user_balances').upsert({'user_id': user_id, 'amount': data['balance']}).execute()
+    
+    return jsonify({'success': True})
+
+# API: поиск пользователей
+@app.route('/api/users/search')
+@requires_auth
+def api_search_users():
+    query = request.args.get('q', '')
+    res = supabase.table('users').select('*, user_stats(*)').or_(f"username.ilike.%{query}%,first_name.ilike.%{query}%,user_id.eq.{query if query.isdigit() else 0}").limit(50).execute()
+    return jsonify(res.data)
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
