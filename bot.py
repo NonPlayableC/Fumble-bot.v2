@@ -1543,6 +1543,11 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         traceback=tb_string[:1500],
         context=json.dumps(update_data)[:500] if update_data else None
     )
+    
+    await notify_admin_error(
+        error_type=type(context.error).__name__,
+        error_message=str(context.error)[:300]
+    )
                 
 # Остальные обработчики (price, holders, balance, meme, sticker, leaderboard, subscribe/unsubscribe,
 # language, help, game_center, my_stats, achievements, certificate, suffering_calendar,
