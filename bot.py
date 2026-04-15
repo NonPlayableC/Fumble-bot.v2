@@ -960,7 +960,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     
-    # 1. Сначала проверяем реферальную систему
+    # 1. Реферальная система
     if context.args and context.args[0].startswith('ref_'):
         try:
             referrer_id = int(context.args[0][4:])
@@ -970,34 +970,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    # 2. Получаем пользователя и узнаем, новый ли он
+    # 2. Получаем пользователя
     user = await get_user(user_id)
     is_new = user is None
-    
-    # Получаем язык
     lang = await get_language(user_id)
     
-    # 3. Создаем пользователя, если новый
+    # 3. Создаем если новый
     if is_new:
         await create_user(user_id, update.effective_user.username,
                           update.effective_user.first_name, lang)
     else:
         await update_user(user_id, last_active=datetime.now())
 
-    # 4. Генерируем приветствие
+    # 4. Приветствие
     welcome_text = get_welcome(lang, is_new)
+    await update.message.reply_text(welcome_text, parse_mode=ParseMode.MARKDOWN)
     
-    # Добавляем дисклеймер для новых
+    # 5. Для новых — дисклеймер с кнопками
     if is_new:
         disclaimer_text = get_text(lang, "disclaimer")
         kb_disclaimer = InlineKeyboardMarkup([
             [InlineKeyboardButton(get_text(lang, "disclaimer_accept"), callback_data="accept_disclaimer"),
              InlineKeyboardButton(get_text(lang, "disclaimer_decline"), callback_data="decline_disclaimer")]
         ])
-        msg = await update.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
-        context.user_data['onboarding_msg_id'] = msg.message_id
-        return        
-    # 5. Статистика
+        await update.message.reply_text(disclaimer_text, reply_markup=kb_disclaimer, parse_mode=ParseMode.MARKDOWN)
+        return  # Ждём решения пользователя
+    
+    # 6. Для старых — удаляем старое меню (если было)
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
+    # 7. Статистика
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1007,15 +1014,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
     await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
     
-    # 6. Отправляем меню и сохраняем ID
+    # 8. Меню
     msg = await update.message.reply_text(
         TEXTS[lang].get("menu_title", "📋 BINTY Menu"),
         reply_markup=await get_main_menu(user_id, lang),
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-    await save_menu_id(user_id, msg.message_id)
- 
+     
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
