@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пользователи — BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <h2>👥 Пользователи</h2>
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени, username или ID...">
+            </div>
+            <div class="col-md-2">
+                <button id="searchBtn" class="btn btn-primary">Найти</button>
+                <button id="resetBtn" class="btn btn-secondary">Сбросить</button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Имя</th>
+                        <th>Язык</th>
+                        <th>Фамблы</th>
+                        <th>Очки</th>
+                        <th>Стрик</th>
+                        <th>Заблокирован</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr><td colspan="9" class="text-center">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <nav>
+            <ul class="pagination" id="pagination"></ul>
+        </nav>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editUserId">
+                    <div class="mb-3">
+                        <label class="form-label">Очки фамбла (total_score)</label>
+                        <input type="number" id="editScore" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Баланс $BINTY</label>
+                        <input type="number" id="editBalance" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Стрик (дней)</label>
+                        <input type="number" id="editStreak" class="form-control">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" id="editBlocked" class="form-check-input">
+                        <label class="form-check-label">Заблокирован</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveUser()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentPage = 1;
+        let editModal;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            editModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+            loadUsers();
+            
+            document.getElementById('searchBtn').addEventListener('click', searchUsers);
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                document.getElementById('searchInput').value = '';
+                loadUsers();
+            });
+        });
+        
+        async function loadUsers(page = 1) {
+            currentPage = page;
+            const res = await fetch(`/api/users?page=${page}`);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = data.users.map(u => {
+                const stats = u.user_stats || {};
+                return `<tr>
+                    <td>${u.user_id}</td>
+                    <td>@${u.username || '-'}</td>
+                    <td>${u.first_name || '-'}</td>
+                    <td>${u.language || 'en'}</td>
+                    <td>${stats.total_fumbles || 0}</td>
+                    <td>${stats.total_score || 0}</td>
+                    <td>${u.streak_days || 0}</td>
+                    <td>${u.blocked ? '❌' : '✅'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick='editUser(${JSON.stringify(u).replace(/'/g, "&apos;")})'>✏️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            
+            renderPagination(data.total, data.page, data.per_page);
+        }
+        
+        function renderPagination(total, page, perPage) {
+            const totalPages = Math.ceil(total / perPage);
+            const pagination = document.getElementById('pagination');
+            let html = '';
+            
+            for (let i = 1; i <= totalPages && i <= 10; i++) {
+                html += `<li class="page-item ${i === page ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="loadUsers(${i}); return false;">${i}</a>
+                </li>`;
+            }
+            pagination.innerHTML = html;
+        }
+        
+        async function searchUsers() {
+            const q = document.getElementById('searchInput').value;
+            if (!q) {
+                loadUsers();
+                return;
+            }
+            
+            const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+            const users = await res.json();
+            
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = users.map(u => {
+                const stats = u.user_stats || {};
+                return `<tr>
+                    <td>${u.user_id}</td>
+                    <td>@${u.username || '-'}</td>
+                    <td>${u.first_name || '-'}</td>
+                    <td>${u.language || 'en'}</td>
+                    <td>${stats.total_fumbles || 0}</td>
+                    <td>${stats.total_score || 0}</td>
+                    <td>${u.streak_days || 0}</td>
+                    <td>${u.blocked ? '❌' : '✅'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick='editUser(${JSON.stringify(u).replace(/'/g, "&apos;")})'>✏️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+            
+            document.getElementById('pagination').innerHTML = '';
+        }
+        
+        function editUser(user) {
+            document.getElementById('editUserId').value = user.user_id;
+            document.getElementById('editScore').value = user.user_stats?.total_score || 0;
+            document.getElementById('editBalance').value = user.user_balances?.amount || 0;
+            document.getElementById('editStreak').value = user.streak_days || 0;
+            document.getElementById('editBlocked').checked = user.blocked || false;
+            editModal.show();
+        }
+        
+        async function saveUser() {
+            const userId = document.getElementById('editUserId').value;
+            const data = {
+                total_score: parseInt(document.getElementById('editScore').value) || 0,
+                balance: parseInt(document.getElementById('editBalance').value) || 0,
+                streak_days: parseInt(document.getElementById('editStreak').value) || 0,
+                blocked: document.getElementById('editBlocked').checked
+            };
+            
+            await fetch(`/api/users/${userId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            editModal.hide();
+            loadUsers(currentPage);
+        }
+    </script>
+</body>
+</html>
