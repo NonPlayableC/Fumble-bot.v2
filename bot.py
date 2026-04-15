@@ -55,8 +55,7 @@ from supabase_client import (
     check_and_update_limits,
     log_error,
     save_certificate,
-    get_user_certificates
-    log_error,
+    get_user_certificates,
     notify_admin_error
 )
     
