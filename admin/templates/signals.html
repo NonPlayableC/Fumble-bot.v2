@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сигналы — BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <h2>📡 Управление сигналами</h2>
+        
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <button class="btn btn-success" onclick="openModal(null)">+ Новый сигнал</button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Текст (RU)</th>
+                        <th>Тип</th>
+                        <th>Активен</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="signalsTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Модальное окно -->
+    <div class="modal fade" id="signalModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Новый сигнал</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="signalId">
+                    
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-ru">RU</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-en">EN</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-es">ES</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-zh">ZH</a></li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="tab-ru">
+                            <label class="form-label">Текст сигнала (RU)</label>
+                            <textarea id="text_ru" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="tab-en">
+                            <label class="form-label">Текст сигнала (EN)</label>
+                            <textarea id="text_en" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="tab-es">
+                            <label class="form-label">Текст сигнала (ES)</label>
+                            <textarea id="text_es" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="tab-zh">
+                            <label class="form-label">Текст сигнала (ZH)</label>
+                            <textarea id="text_zh" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Тип сигнала</label>
+                            <select id="signal_type" class="form-select">
+                                <option value="normal">Обычный</option>
+                                <option value="rare">Редкий</option>
+                                <option value="daily">Дневной</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mt-3">
+                        <input type="checkbox" id="is_active" class="form-check-input" checked>
+                        <label class="form-check-label">Активен</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSignal()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let signalModal;
+        let signals = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            signalModal = new bootstrap.Modal(document.getElementById('signalModal'));
+            loadSignals();
+        });
+        
+        async function loadSignals() {
+            const res = await fetch('/api/signals');
+            signals = await res.json();
+            
+            const tbody = document.getElementById('signalsTable');
+            tbody.innerHTML = signals.map(s => `
+                <tr>
+                    <td>${s.id}</td>
+                    <td>${(s.text_ru || '').substring(0, 50)}...</td>
+                    <td>${s.signal_type || 'normal'}</td>
+                    <td>${s.is_active ? '✅' : '❌'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openModal(${s.id})">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSignal(${s.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function openModal(id) {
+            const signal = id ? signals.find(s => s.id === id) : null;
+            document.getElementById('signalId').value = id || '';
+            document.getElementById('modalTitle').textContent = id ? 'Редактировать сигнал' : 'Новый сигнал';
+            
+            document.getElementById('text_ru').value = signal?.text_ru || '';
+            document.getElementById('text_en').value = signal?.text_en || '';
+            document.getElementById('text_es').value = signal?.text_es || '';
+            document.getElementById('text_zh').value = signal?.text_zh || '';
+            document.getElementById('signal_type').value = signal?.signal_type || 'normal';
+            document.getElementById('is_active').checked = signal?.is_active ?? true;
+            
+            signalModal.show();
+        }
+        
+        async function saveSignal() {
+            const id = document.getElementById('signalId').value;
+            const data = {
+                text_ru: document.getElementById('text_ru').value,
+                text_en: document.getElementById('text_en').value,
+                text_es: document.getElementById('text_es').value,
+                text_zh: document.getElementById('text_zh').value,
+                signal_type: document.getElementById('signal_type').value,
+                is_active: document.getElementById('is_active').checked
+            };
+            
+            const url = id ? `/api/signals/${id}` : '/api/signals';
+            const method = id ? 'PUT' : 'POST';
+            
+            await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            signalModal.hide();
+            loadSignals();
+        }
+        
+        async function deleteSignal(id) {
+            if (!confirm('Удалить сигнал?')) return;
+            await fetch(`/api/signals/${id}`, {method: 'DELETE'});
+            loadSignals();
+        }
+    </script>
+</body>
+</html>
