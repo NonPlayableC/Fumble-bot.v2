@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вопросы фамбла — BINTY Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🎭 BINTY Admin</span>
+            <div class="d-flex">
+                <a href="/" class="btn btn-outline-light btn-sm me-2">Дашборд</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <h2>🎲 Вопросы для ручного фамбла</h2>
+        
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <button class="btn btn-success" onclick="openQuestionModal(null)">+ Новый вопрос</button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Вопрос (RU)</th>
+                        <th>Вариантов</th>
+                        <th>Активен</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="questionsTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Модальное окно вопроса -->
+    <div class="modal fade" id="questionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Новый вопрос</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="questionId">
+                    
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#q-ru">RU</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#q-en">EN</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#q-es">ES</a></li>
+                        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#q-zh">ZH</a></li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="q-ru">
+                            <label class="form-label">Вопрос (RU)</label>
+                            <textarea id="question_ru" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="q-en">
+                            <label class="form-label">Вопрос (EN)</label>
+                            <textarea id="question_en" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="q-es">
+                            <label class="form-label">Вопрос (ES)</label>
+                            <textarea id="question_es" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="q-zh">
+                            <label class="form-label">Вопрос (ZH)</label>
+                            <textarea id="question_zh" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mt-3">
+                        <input type="checkbox" id="is_active" class="form-check-input" checked>
+                        <label class="form-check-label">Активен</label>
+                    </div>
+                    
+                    <hr>
+                    <h6>Варианты ответов</h6>
+                    <div id="optionsContainer"></div>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="addOption()">+ Добавить вариант</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuestion()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let questionModal;
+        let questions = [];
+        let optionIndex = 0;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            questionModal = new bootstrap.Modal(document.getElementById('questionModal'));
+            loadQuestions();
+        });
+        
+        async function loadQuestions() {
+            const res = await fetch('/api/fumble-questions');
+            questions = await res.json();
+            
+            const tbody = document.getElementById('questionsTable');
+            tbody.innerHTML = questions.map(q => `
+                <tr>
+                    <td>${q.id}</td>
+                    <td>${(q.question_ru || q.question_en || '').substring(0, 50)}...</td>
+                    <td>${q.options?.length || 0}</td>
+                    <td>${q.is_active ? '✅' : '❌'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openQuestionModal(${q.id})">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteQuestion(${q.id})">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function openQuestionModal(id) {
+            const question = id ? questions.find(q => q.id === id) : null;
+            document.getElementById('questionId').value = id || '';
+            document.getElementById('modalTitle').textContent = id ? 'Редактировать вопрос' : 'Новый вопрос';
+            
+            document.getElementById('question_ru').value = question?.question_ru || '';
+            document.getElementById('question_en').value = question?.question_en || '';
+            document.getElementById('question_es').value = question?.question_es || '';
+            document.getElementById('question_zh').value = question?.question_zh || '';
+            document.getElementById('is_active').checked = question?.is_active ?? true;
+            
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+            optionIndex = 0;
+            
+            if (question?.options) {
+                question.options.sort((a, b) => a.sort_order - b.sort_order).forEach(opt => {
+                    addOption(opt);
+                });
+            }
+            
+            questionModal.show();
+        }
+        
+        function addOption(existing = null) {
+            const idx = optionIndex++;
+            const container = document.getElementById('optionsContainer');
+            
+            const div = document.createElement('div');
+            div.className = 'row mb-2 option-row';
+            div.dataset.index = idx;
+            div.dataset.id = existing?.id || '';
+            
+            div.innerHTML = `
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" placeholder="RU" value="${existing?.option_ru || ''}">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" placeholder="EN" value="${existing?.option_en || ''}">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control form-control-sm" placeholder="ES" value="${existing?.option_es || ''}">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control form-control-sm" placeholder="ZH" value="${existing?.option_zh || ''}">
+                </div>
+                <div class="col-md-1">
+                    <select class="form-select form-select-sm">
+                        <option value="high" ${existing?.weight === 'high' ? 'selected' : ''}>High</option>
+                        <option value="medium" ${existing?.weight === 'medium' ? 'selected' : ''}>Medium</option>
+                        <option value="low" ${existing?.weight === 'low' ? 'selected' : ''}>Low</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button class="btn btn-sm btn-danger" onclick="this.closest('.option-row').remove()">🗑️</button>
+                </div>
+            `;
+            
+            container.appendChild(div);
+        }
+        
+        async function saveQuestion() {
+            const id = document.getElementById('questionId').value;
+            
+            const options = [];
+            document.querySelectorAll('.option-row').forEach((row, i) => {
+                const inputs = row.querySelectorAll('input');
+                const select = row.querySelector('select');
+                options.push({
+                    id: row.dataset.id || null,
+                    option_ru: inputs[0].value,
+                    option_en: inputs[1].value,
+                    option_es: inputs[2].value,
+                    option_zh: inputs[3].value,
+                    weight: select.value,
+                    sort_order: i
+                });
+            });
+            
+            const data = {
+                question_ru: document.getElementById('question_ru').value,
+                question_en: document.getElementById('question_en').value,
+                question_es: document.getElementById('question_es').value,
+                question_zh: document.getElementById('question_zh').value,
+                is_active: document.getElementById('is_active').checked,
+                options: options
+            };
+            
+            const url = id ? `/api/fumble-questions/${id}` : '/api/fumble-questions';
+            const method = id ? 'PUT' : 'POST';
+            
+            await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            questionModal.hide();
+            loadQuestions();
+        }
+        
+        async function deleteQuestion(id) {
+            if (!confirm('Удалить вопрос и все варианты?')) return;
+            await fetch(`/api/fumble-questions/${id}`, {method: 'DELETE'});
+            loadQuestions();
+        }
+    </script>
+</body>
+</html>
