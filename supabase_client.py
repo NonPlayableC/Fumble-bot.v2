@@ -1084,6 +1084,22 @@ async def log_error(user_id: int = None, error_type: str = None, error_message: 
         logging.error(f"Failed to log error to Supabase: {e}")
         return False
         
+async def notify_admin_error(error_type: str, error_message: str):
+    """Отправляет уведомление админу о критической ошибке"""
+    import telegram
+    admin_id = os.getenv("ADMIN_CHAT_ID")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    
+    if not admin_id or not bot_token:
+        return
+    
+    try:
+        bot = telegram.Bot(token=bot_token)
+        text = f"🚨 BINTY BOT ERROR\n\nType: {error_type}\nMessage: {error_message[:500]}\nTime: {datetime.now().isoformat()}"
+        await bot.send_message(chat_id=admin_id, text=text)
+    except Exception as e:
+        logging.error(f"Failed to notify admin: {e}")
+        
 # ==================== ТЕКСТЫ ИЗ БД ====================
 
 async def get_translation(key: str, lang: str = "en") -> Optional[Any]:
