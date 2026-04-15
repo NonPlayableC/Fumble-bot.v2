@@ -142,5 +142,29 @@ def api_delete_meme(meme_id):
     supabase.table('memes').delete().eq('id', meme_id).execute()
     return jsonify({'success': True})
 
+@app.route('/stickers')
+@requires_auth
+def stickers_page():
+    return render_template('stickers.html')
+
+@app.route('/api/stickers')
+@requires_auth
+def api_stickers():
+    res = supabase.table('stickers').select('*').order('id', desc=True).execute()
+    return jsonify(res.data)
+
+@app.route('/api/stickers', methods=['POST'])
+@requires_auth
+def api_add_sticker():
+    data = request.json
+    supabase.table('stickers').insert({'file_id': data['file_id'], 'pack': data['pack']}).execute()
+    return jsonify({'success': True})
+
+@app.route('/api/stickers/<int:sticker_id>', methods=['DELETE'])
+@requires_auth
+def api_delete_sticker(sticker_id):
+    supabase.table('stickers').delete().eq('id', sticker_id).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
