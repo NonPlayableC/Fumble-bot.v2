@@ -688,11 +688,6 @@ async def get_user_certificates(user_id: int) -> List[Dict]:
         logging.error(f"Error getting certificates for {user_id}: {e}")
         return []
 
-# ==================== АЧИВКИ (ПРОВЕРКА И ВЫДАЧА) ====================
-
-# Импортируем в конец файла, чтобы избежать циклических импортов
-from texts import get_text
-
 # ==================== ШУТКИ ПРО ПОРТФЕЛЬ ====================
 
 async def get_portfolio_roast(address: str, lang: str = "en") -> str:
