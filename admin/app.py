@@ -365,6 +365,8 @@ def api_import():
             supabase.table(table).insert(rows).execute()
     return jsonify({'success': True})
 
+# ==================== ПЕРЕВОДЫ ====================
+
 @app.route('/translations')
 @requires_auth
 def translations_page():
@@ -386,7 +388,7 @@ def api_save_translation():
         'key': data['key'],
         'value': data['value'],
         'updated_at': datetime.now().isoformat()
-    }).execute()
+    }, on_conflict='lang,key').execute()
     return jsonify({'success': True})
 
 if __name__ == '__main__':
