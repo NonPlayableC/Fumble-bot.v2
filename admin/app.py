@@ -365,5 +365,29 @@ def api_import():
             supabase.table(table).insert(rows).execute()
     return jsonify({'success': True})
 
+@app.route('/translations')
+@requires_auth
+def translations_page():
+    return render_template('translations.html')
+
+@app.route('/api/translations')
+@requires_auth
+def api_translations():
+    lang = request.args.get('lang', 'ru')
+    res = supabase.table('translations').select('*').eq('lang', lang).order('key').execute()
+    return jsonify(res.data)
+
+@app.route('/api/translations', methods=['POST'])
+@requires_auth
+def api_save_translation():
+    data = request.json
+    supabase.table('translations').upsert({
+        'lang': data['lang'],
+        'key': data['key'],
+        'value': data['value'],
+        'updated_at': datetime.now().isoformat()
+    }).execute()
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
