@@ -59,7 +59,7 @@ from supabase_client import (
     notify_admin_error
 )
     
-from texts import TEXTS, get_text, add_hooks
+from texts import TEXTS, get_text, add_hooks, get_button_text, init_texts
 from twitter_poster import start_scheduler  # опционально
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -2974,6 +2974,8 @@ def run_health_server():
 def main():
     init_supabase()
     start_scheduler()
+    
+    asyncio.run(init_texts())
     
     global cached_fumble_questions
     cached_fumble_questions = asyncio.run(fetch_fumble_questions())
