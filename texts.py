@@ -1,21 +1,35 @@
 import random
 import json
-from supabase_client import get_translation, load_translations, clear_translations_cache
+from supabase_client import get_translation, load_translations
 
-# Кэш для быстрого доступа (если нужен локально)
 _texts_cache = {}
 
 async def init_texts():
     """Загружает все переводы при старте бота"""
     await load_translations()
-    # Очищаем локальный кэш, если он используется
     global _texts_cache
     _texts_cache = {}
 
+def _process_value(value: str, *args) -> str:
+    """Обрабатывает значение: парсит JSON-списки, подставляет аргументы"""
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            value = random.choice(parsed)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    if args:
+        try:
+            value = value.format(*args)
+        except:
+            pass
+    
+    return value
+
 async def get_text(lang: str, key: str, *args) -> str:
-    """
-    Получает текст из БД, обрабатывает списки, редкие фразы и подставляет аргументы.
-    """
+    """Получает текст из БД, обрабатывает списки, редкие фразы и подставляет аргументы"""
+    
     # Особые случаи с вероятностями
     if key == "signal":
         if random.random() < 0.05:
@@ -42,39 +56,13 @@ async def get_text(lang: str, key: str, *args) -> str:
     
     return _process_value(value, *args)
 
-
-def _process_value(value: str, *args) -> str:
-    """Обрабатывает значение: парсит JSON-списки, подставляет аргументы"""
-    # Пробуем распарсить как JSON (список фраз)
-    try:
-        parsed = json.loads(value)
-        if isinstance(parsed, list):
-            value = random.choice(parsed)
-    except (json.JSONDecodeError, TypeError):
-        pass
-    
-    # Подставляем аргументы
-    if args:
-        try:
-            value = value.format(*args)
-        except:
-            pass
-    
-    return value
-
-
 async def get_button_text(lang: str, key: str) -> str:
     """Получает текст кнопки (с префиксом btn_)"""
     return await get_text(lang, f"btn_{key}")
 
-
 def add_hooks(lang: str, text: str) -> str:
-    """Добавляет хештеги и эмодзи к тексту"""
-    # Эта функция теперь не зависит от TEXTS, поэтому хештеги нужно либо
-    # тоже перенести в БД, либо оставить как заглушку.
-    # Пока оставляем как есть — без хештегов.
+    """Добавляет хештеги и эмодзи к тексту (пока заглушка)"""
     return text
-
 
 # ==================== СТАРЫЙ СЛОВАРЬ TEXTS ====================
 # Можно оставить закомментированным как резервную копию
@@ -82,7 +70,7 @@ def add_hooks(lang: str, text: str) -> str:
 
 #import random
 
-TEXTS = {
+"""TEXTS = {
     "en": {
         "buttons": {
             "signal": "📈 SIGNAL (BAD)",
@@ -3059,7 +3047,7 @@ TEXTS = {
     }
 }
 
-"""def get_text(lang, key, *args):
+def get_text(lang, key, *args):
     if key == "ignore_text":
         return random.choice(TEXTS[lang]["ignore_text"])
     elif key == "signal":
