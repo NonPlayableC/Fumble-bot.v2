@@ -59,7 +59,7 @@ from supabase_client import (
     notify_admin_error
 )
     
-from texts import TEXTS, get_text, add_hooks, get_button_text, init_texts
+from texts import get_text, add_hooks, get_button_text, init_texts
 from twitter_poster import start_scheduler  # опционально
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
