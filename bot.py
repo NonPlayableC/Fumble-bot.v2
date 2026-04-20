@@ -15,6 +15,8 @@ from typing import Optional, Tuple, List, Dict, Any
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 import qrcode
 
+from telegram import ReplyKeyboardMarkup, KeyboardButton
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Poll
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
@@ -76,7 +78,7 @@ CHAT_URL = "https://t.me/bintychat"
 STICKER_URL = "https://t.me/addstickers/BintyStickers"
 
 price_cache = {"price": None, "change": 0, "timestamp": 0}
-CACHE_DURATION = 300
+CACHE_DURATION = 900
 
 MAX_STORAGE = 1000
 last_responses = {}
@@ -139,7 +141,8 @@ async def get_progress_menu(lang: str) -> InlineKeyboardMarkup:
 
 async def get_activities_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(await get_button_text(lang, "quests"), callback_data="quests")],
+        [InlineKeyboardButton(await get_button_text(lang, "quests"), callback_data="quests"),
+         InlineKeyboardButton(await get_button_text(lang, "sticker"), callback_data="sticker")],
         [InlineKeyboardButton(await get_button_text(lang, "manual_fumble"), callback_data="manual_fumble")],
         [InlineKeyboardButton(await get_button_text(lang, "back"), callback_data="hall_of_suffering")],
         [InlineKeyboardButton(await get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")]
@@ -1275,6 +1278,13 @@ async def check_action_limit(user_id: int, action: str, lang: str) -> tuple:
     
     return True, None
     
+async def get_menu_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:
+    button_text = await get_button_text(lang, "menu_button")
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(button_text)]],
+        resize_keyboard=True,
+        persistent=True
+    )
 # ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
