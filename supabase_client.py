@@ -224,6 +224,41 @@ async def get_fumble_history(user_id: int, limit: int = 10) -> List[Dict]:
         logging.error(f"Error getting fumble history for {user_id}: {e}")
         return []
         
+async def get_last_swap_transaction(wallet: str) -> Optional[Dict[str, Any]]:
+    """Получает последнюю SWAP транзакцию через Helius (или Solscan fallback) не старше 24 часов"""
+    from datetime import datetime, timedelta, timezone
+    
+    now = datetime.now(timezone.utc)
+    time_limit = now - timedelta(hours=24)  # только свежие транзакции
+    
+    if HELIUS_API_KEY:
+        url = f"https://api.helius.xyz/v0/addresses/{wallet}/transactions?api-key={HELIUS_API_KEY}&limit=10"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        txs = await resp.json()
+                        for tx in txs:
+                            if tx.get("type") == "SWAP":
+                                # Проверяем время транзакции
+                                tx_time = datetime.fromtimestamp(tx.get("timestamp", 0), tz=timezone.utc)
+                                if tx_time >= time_limit:
+                                    return tx
+        except Exception as e:
+            logging.error(f"Helius error: {e}")
+
+    # Fallback на Solscan
+    url = f"https://public-api.solscan.io/account/transactions?account={wallet}&limit=10"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=HEADERS) as resp:
+            data = await resp.json()
+            for tx in data:
+                if "swap" in str(tx).lower():
+                    # Solscan timestamp в Unix
+                    tx_time = datetime.fromtimestamp(tx.get("blockTime", 0), tz=timezone.utc)
+                    if tx_time >= time_limit:
+                        return tx
+    return None
 # ==================== ВЛИЯНИЕ СИГНАЛА НА ФАМБЛ ====================
 
 async def check_signal_fumble_bonus(user_id: int) -> int:
