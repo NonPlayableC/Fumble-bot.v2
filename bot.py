@@ -2713,6 +2713,14 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     await update_streak(user_id)
     
     stats = await get_user_stats(user_id)
@@ -2752,6 +2760,14 @@ async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+            
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2770,6 +2786,14 @@ async def show_activities_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+            
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2788,6 +2812,14 @@ async def show_history_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+            
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2806,6 +2838,14 @@ async def show_social_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    # Удаляем предыдущее контентное сообщение
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+            
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
