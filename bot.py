@@ -2056,9 +2056,6 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Отправка нового меню
     await update_menu(chat_id, user_id, context, lang)
 
-# В main() добавить:
-app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
-
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3223,6 +3220,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(button_callback))
+    app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
     
     job_queue = app.job_queue
     if job_queue:
