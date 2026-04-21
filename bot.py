@@ -1345,6 +1345,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
+    reply_kb = await get_menu_reply_keyboard(lang)
+    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
+
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1384,6 +1387,9 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
+
+    reply_kb = await get_menu_reply_keyboard(lang)
+    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
 
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2027,6 +2033,32 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     final_text = add_hooks(lang, text)
     await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
     
+from telegram.ext import MessageHandler, filters
+
+async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    lang = await get_language(user_id)
+    
+    # Очистка предыдущих сообщений бота
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    if user_id in menu_message_ids:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=menu_message_ids[user_id])
+        except:
+            pass
+    
+    # Отправка нового меню
+    await update_menu(chat_id, user_id, context, lang)
+
+# В main() добавить:
+app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
+
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
