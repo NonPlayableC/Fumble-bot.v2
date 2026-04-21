@@ -523,33 +523,19 @@
         }
         
         async function saveTranslation() {
-            const id = document.getElementById('editId').value;
             const lang = document.getElementById('editLang').value;
             const key = document.getElementById('editKey').value;
-            const isNew = id === '';
+            const value = document.getElementById('editValue').value;
             
-            if (!key) {
-                alert('Введите ключ');
+            if (!key.trim()) {
+                alert('Ключ не может быть пустым');
                 return;
-            }
-            
-            let value;
-            const isList = document.getElementById('listEditor').style.display === 'block';
-            
-            if (isList) {
-                const phrases = [];
-                document.querySelectorAll('#phrasesList textarea').forEach(ta => {
-                    if (ta.value.trim()) phrases.push(ta.value.trim());
-                });
-                value = JSON.stringify(phrases);
-            } else {
-                value = document.getElementById('simpleValue').value;
             }
             
             await fetch('/api/translations', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id, lang, key, value})
+                body: JSON.stringify({lang, key, value})
             });
             
             editModal.hide();
