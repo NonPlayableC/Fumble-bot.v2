@@ -1283,7 +1283,7 @@ async def get_menu_reply_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [[KeyboardButton(button_text)]],
         resize_keyboard=True,
-        persistent=True
+        is_persistent=True
     )
 # ==================== ОСНОВНЫЕ ОБРАБОТЧИКИ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
