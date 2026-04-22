@@ -89,6 +89,7 @@ user_tasks = {}
 user_cooldowns = {}
 user_daily_limits = {}
 user_certificate_hash = {}
+reply_keyboard_message_ids = {}
 
 STICKERS = {"regular": [], "gif": []}
 MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
@@ -1345,11 +1346,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
-    if not context.user_data.get("reply_keyboard_sent"):
-        reply_kb = await get_menu_reply_keyboard(lang)
-        await update.message.reply_text(".", reply_markup=reply_kb)
-        context.user_data["reply_keyboard_sent"] = True
-    
+    await send_reply_keyboard(chat_id, user_id, context, lang)
+        
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1390,8 +1388,29 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
+    await send_reply_keyboard(chat_id, user_id, context, lang)
+        
+async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
-    await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
+
+    # если уже есть — удаляем старое
+    if user_id in reply_keyboard_message_ids:
+        try:
+            await context.bot.delete_message(
+                chat_id=chat_id,
+                message_id=reply_keyboard_message_ids[user_id]
+            )
+        except:
+            pass
+
+    # отправляем новое
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=".",  # можно заменить на что-то стильное
+        reply_markup=reply_kb
+    )
+
+    reply_keyboard_message_ids[user_id] = msg.message_id
     
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
