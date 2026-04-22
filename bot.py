@@ -1346,7 +1346,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     menu_message_ids[user_id] = msg.message_id
 
     reply_kb = await get_menu_reply_keyboard(lang)
-    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
+    await update.message.reply_text("\u200b", reply_markup=reply_kb)
 
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -3220,6 +3220,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(button_callback))
+   
     app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
     
     job_queue = app.job_queue
