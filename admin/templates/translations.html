@@ -9,11 +9,39 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <!-- Шапка и боковое меню остаются без изменений, как в других страницах админки -->
-    <nav class="navbar navbar-dark">...</nav>
+    <!-- ====== ШАПКА (ТАКАЯ ЖЕ КАК ВЕЗДЕ) ====== -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand"><i class="bi bi-robot"></i> BINTY Admin</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white-50 me-3" id="currentTime"></span>
+                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i> Выйти</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container-fluid">
         <div class="row">
-            <nav class="col-md-2 d-md-block sidebar">...</nav>
+            <!-- ====== БОКОВОЕ МЕНЮ (ТАКОЕ ЖЕ КАК ВЕЗДЕ) ====== -->
+            <nav class="col-md-2 d-md-block sidebar">
+                <div class="position-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/memes"><i class="bi bi-emoji-laughing"></i> Мемы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/stickers"><i class="bi bi-sticky"></i> Стикеры</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/quests"><i class="bi bi-list-check"></i> Квесты</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/signals"><i class="bi bi-broadcast"></i> Сигналы</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/fumble"><i class="bi bi-dice-5"></i> Вопросы фамбла</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/achievements"><i class="bi bi-trophy"></i> Достижения</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/subscribers"><i class="bi bi-envelope"></i> Подписчики</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/logs"><i class="bi bi-exclamation-triangle"></i> Логи ошибок</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="/translations"><i class="bi bi-translate"></i> Переводы</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- ====== ОСНОВНОЙ КОНТЕНТ ====== -->
             <main class="col-md-10 ms-sm-auto">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="page-title"><i class="bi bi-translate me-2"></i>Управление переводами</h2>
@@ -45,7 +73,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно для добавления/редактирования -->
+    <!-- ====== МОДАЛЬНОЕ ОКНО ====== -->
     <div class="modal fade" id="editModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -77,6 +105,13 @@
     <script>
         let editModal;
         let currentLang = 'ru';
+
+        // Обновление времени в шапке
+        function updateTime() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString('ru-RU');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
 
         document.addEventListener('DOMContentLoaded', () => {
             editModal = new bootstrap.Modal(document.getElementById('editModal'));
@@ -118,7 +153,7 @@
             document.getElementById('editOldKey').value = key;
             document.getElementById('editKey').value = key;
             document.getElementById('editValue').value = value;
-            document.getElementById('editKey').disabled = true; // Ключ менять нельзя при редактировании
+            document.getElementById('editKey').disabled = true; // Ключ менять нельзя
             editModal.show();
         }
 
@@ -133,7 +168,7 @@
                 return;
             }
 
-            // Если ключ изменился при редактировании (хотя он disabled), то удаляем старый
+            // Если редактировали и случайно изменили ключ - удаляем старый
             if (oldKey && oldKey !== key) {
                 await fetch(`/api/translations?lang=${lang}&key=${encodeURIComponent(oldKey)}`, { method: 'DELETE' });
             }
