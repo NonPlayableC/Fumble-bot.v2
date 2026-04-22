@@ -386,19 +386,20 @@ def api_save_translation():
     lang = data.get('lang')
     key = data.get('key')
     value = data.get('value')
-    
+
     if not lang or not key:
-        return jsonify({'error': 'lang and key required'}), 400
-        
-    # Всегда используем upsert, чтобы не было конфликтов
+        return jsonify({'error': 'lang and key are required'}), 400
+
+    # Выполняем операцию upsert (обновить или вставить)
+    # Если запись с таким lang и key существует, она обновится. Если нет — создастся.
     supabase.table('translations').upsert({
         'lang': lang,
         'key': key,
         'value': value,
         'updated_at': datetime.now().isoformat()
     }, on_conflict='lang,key').execute()
-    
+
     return jsonify({'success': True})
-    
+        
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
