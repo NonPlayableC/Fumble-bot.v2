@@ -90,6 +90,7 @@ user_cooldowns = {}
 user_daily_limits = {}
 user_certificate_hash = {}
 reply_keyboard_message_ids = {}
+user_messages = {}  # user_id: [message_ids]
 
 STICKERS = {"regular": [], "gif": []}
 MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
@@ -1351,8 +1352,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
+    chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await clear_user_messages(chat_id, user_id, context)
     
     rules_text = await get_text(lang, "rules")
     kb_rules = InlineKeyboardMarkup([
@@ -1360,7 +1364,7 @@ async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     
     await query.edit_message_text(rules_text, reply_markup=kb_rules, parse_mode=ParseMode.MARKDOWN)
-
+    
 async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1368,9 +1372,8 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
+    await clear_user_messages(chat_id, user_id, context)
     await query.message.delete()
-    
-    await send_reply_keyboard(chat_id, user_id, context, lang)
     
     stats = await get_user_stats(user_id)
     if stats:
@@ -1380,7 +1383,7 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
     
-    await context.bot.send_message(chat_id=chat_id, text=stat_text, parse_mode=ParseMode.MARKDOWN)
+    await send_temp_message(chat_id, user_id, context, stat_text, parse_mode=ParseMode.MARKDOWN)
     
     msg = await context.bot.send_message(
         chat_id=chat_id,
@@ -1389,7 +1392,10 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-        
+
+    reply_kb = await get_menu_reply_keyboard(lang)
+    await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
+            
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
 
@@ -1471,19 +1477,24 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
     
     pause_text = await get_text(lang, "signal_pause")
-    pause_msg = await context.bot.send_message(chat_id=chat_id, text=pause_text)
-    last_responses[user_id] = pause_msg.message_id
-    
+    pause_msg = await send_temp_message(chat_id, user_id, context, pause_text)
+      
     async def delayed_signal():
         await asyncio.sleep(3)
         signal_text = await get_text(lang, "signal")
         final_signal = add_hooks(lang, signal_text)
-        await pause_msg.edit_text(final_signal, parse_mode=ParseMode.MARKDOWN)
+        
+        try:
+            await pause_msg.delete()
+        except:
+            pass
+        await send_temp_message(chat_id, user_id, context, final_signal, parse_mode=ParseMode.MARKDOWN)
+        
         await save_signal_history(user_id, signal_text)
         await check_and_award_achievements(user_id, 'streak')
         if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
             await update_user_title(user_id, update.effective_chat.id, context)
-    
+            
     task = asyncio.create_task(delayed_signal())
     user_tasks[user_id] = task
 
@@ -1579,8 +1590,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result_text += f"\n\n💰 Current BINTY: {amt:.4f} (${val:.2f})"
         
         final_text = add_hooks(lang, result_text)
-        msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
-        last_responses[user_id] = msg.message_id
+        await send_temp_message(chat_id, user_id, context, final_text, parse_mode=ParseMode.MARKDOWN)
         await check_and_award_achievements(user_id, 'fumble', score)
         if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
             await update_user_title(user_id, update.effective_chat.id, context)
@@ -1607,7 +1617,7 @@ async def fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             msg = await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
             menu_message_ids[user_id] = msg.message_id
-            
+                        
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     poll_answer = update.poll_answer
     user_id = poll_answer.user.id
@@ -1648,12 +1658,10 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except:
             pass
     
-    msg = await context.bot.send_message(chat_id=user_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
-    last_responses[user_id] = msg.message_id
-    await check_and_award_achievements(user_id, 'fumble', score)
-    if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
-        await update_user_title(user_id, update.effective_chat.id, context)
-
+    pause_text = await get_text(lang, "signal_pause")
+    pause_msg = await send_temp_message(user_id, user_id, context, pause_text)
+    last_responses[user_id] = pause_msg.message_id
+    
 async def manual_fumble_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1816,15 +1824,9 @@ async def finish_manual_fumble(user_id: int, chat_id: int, lang: str, context: C
             result_text += f"\n\n💰 BINTY: {amt:.4f} (${val:.2f})"
     
     final_text = add_hooks(lang, result_text)
-    
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-        except:
-            pass
-    
-    msg = await context.bot.send_message(chat_id=chat_id, text=final_text, parse_mode=ParseMode.MARKDOWN)
-    last_responses[user_id] = msg.message_id
+
+    await clear_user_messages(chat_id, user_id, context)
+    await send_temp_message(chat_id, user_id, context, final_text, parse_mode=ParseMode.MARKDOWN)
     
     del user_fumble_state[user_id]
     
@@ -1868,13 +1870,21 @@ async def portfolio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         change = ((value - first_val) / first_val * 100) if first_val > 0 else 0
         text = await get_text(lang, "portfolio", amount, value, change)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
+        await clear_user_messages(chat_id, user_id, context)
+        
+        # send_temp_message не поддерживает photo, поэтому делаем свой вариант
+        msg = await context.bot.send_photo(chat_id=chat_id, photo=chart, caption=final_text, parse_mode=ParseMode.MARKDOWN)
+        if user_id not in user_messages:
+            user_messages[user_id] = []
+        user_messages[user_id].append(msg.message_id)
     else:
         chart = generate_portfolio_chart_fake()
         text = await get_text(lang, "portfolio", 0, 0, 0)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, photo=chart)
-
+        pause_text = await get_text(lang, "signal_pause")
+        pause_msg = await send_temp_message(chat_id, user_id, context, pause_text)
+        last_responses[user_id] = pause_msg.message_id  # это можно оставить для совместимости
+        
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logging.error(msg="Exception while handling an update:", exc_info=context.error)
     
@@ -1919,11 +1929,14 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     await update_streak(user_id)
     await check_and_award_achievements(user_id, 'price')
+    
+    await clear_user_messages(chat_id, user_id, context)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     
     usd, change = await get_price()
     if usd is None:
-        await delete_previous_and_send(chat_id, user_id, await get_text(lang, "price_unavailable"), context)
+        text = await get_text(lang, "price_unavailable")
+        await send_temp_message(chat_id, user_id, context, text)
         return
     
     emoji = "📈" if change >= 0 else "📉"
@@ -1935,8 +1948,8 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price_text = await get_text(lang, "price_response", usd, emoji, change)
     
     final_text = add_hooks(lang, price_text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-
+    await send_temp_message(chat_id, user_id, context, final_text, parse_mode=ParseMode.MARKDOWN)
+    
 async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1954,16 +1967,18 @@ async def holders(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
+    await clear_user_messages(chat_id, user_id, context)
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     count = await get_holders()
     
     if count is None:
-        await delete_previous_and_send(chat_id, user_id, await get_text(lang, "holders_unavailable"), context)
+        text = await get_text(lang, "holders_unavailable")
+        await send_temp_message(chat_id, user_id, context, text)
     else:
         text = await get_text(lang, "holders", count)
         final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context, parse_mode=ParseMode.MARKDOWN)
-
+        await send_temp_message(chat_id, user_id, context, final_text, parse_mode=ParseMode.MARKDOWN)
+        
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1985,7 +2000,8 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(await get_text(lang, "cancel_btn"), callback_data="cancel_balance")]
     ])
     text = await get_text(lang, "balance_prompt")
-    await delete_previous_and_send(chat_id, user_id, text, context, reply_markup=cancel_kb)
+    await clear_user_messages(chat_id, user_id, context)
+    await send_temp_message(chat_id, user_id, context, text, reply_markup=cancel_kb)
     context.user_data['awaiting_balance'] = True
 
 async def cancel_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2023,8 +2039,8 @@ async def handle_balance_message(update: Update, context: ContextTypes.DEFAULT_T
             text = await get_text(lang, "balance_response", address, amount, value)
             text += f"\n\n*{roast}*"
             final_text = add_hooks(lang, text)
-            await update.message.reply_text(final_text, parse_mode=ParseMode.MARKDOWN)
-
+            await send_temp_message(update.effective_chat.id, user_id, context, final_text, parse_mode=ParseMode.MARKDOWN)
+            
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
@@ -2048,47 +2064,24 @@ async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
+    await clear_user_messages(chat_id, user_id, context)
     await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
     url = random.choice(MEMES)
     text = await get_text(lang, "meme")
     final_text = add_hooks(lang, text)
-    await delete_previous_and_send(chat_id, user_id, final_text, context, photo=url)
     
-from telegram.ext import MessageHandler, filters
-
+    msg = await context.bot.send_photo(chat_id=chat_id, photo=url, caption=final_text, parse_mode=ParseMode.MARKDOWN)
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(msg.message_id)
+    
 async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
-
-    # Удаляем старые сообщения
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-
-    if user_id in menu_message_ids:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=menu_message_ids[user_id])
-            del menu_message_ids[user_id]
-        except:
-            pass
-
-    # Отправляем новое меню
-    menu_text = await get_text(lang, "menu_title")
-    menu_markup = await get_main_menu(user_id, lang)
-
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text=menu_text,
-        reply_markup=menu_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
-    menu_message_ids[user_id] = msg.message_id
-    await save_menu_id(user_id, msg.message_id)
-        
+    await clear_user_messages(chat_id, user_id, context)
+    await update_menu(chat_id, user_id, context, lang)
+                
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2125,7 +2118,7 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = query.from_user.username or query.from_user.first_name
     
     drawing_text = await get_text(lang, "drawing_certificate")
-    drawing_msg = await context.bot.send_message(chat_id=chat_id, text=drawing_text)
+    drawing_msg = await send_temp_message(chat_id, user_id, context, drawing_text)
     
     try:
         img = generate_certificate_of_shame(user_id, username, level_name,
@@ -2137,15 +2130,17 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "{}" in caption:
             caption = caption.format(stats["count"])
         
-        await drawing_msg.delete()
-        if user_id in last_responses:
-            try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            except:
-                pass
+        try:
+            await drawing_msg.delete()
+        except:
+            pass
+        
+        await clear_user_messages(chat_id, user_id, context)
         
         msg = await context.bot.send_photo(chat_id=chat_id, photo=img, caption=caption)
-        last_responses[user_id] = msg.message_id
+        if user_id not in user_messages:
+            user_messages[user_id] = []
+        user_messages[user_id].append(msg.message_id)
         await save_certificate(user_id, msg.photo[-1].file_id)
         
         user_certificate_hash[user_id] = current_hash
@@ -2153,7 +2148,7 @@ async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"Certificate error: {e}")
         await drawing_msg.edit_text("❌ Ошибка при создании сертификата.")
-
+        
 async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2172,7 +2167,10 @@ async def view_certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     date_str = cert["created_at"][:10]
     text = await get_text(lang, "certificate_view", date_str)
     
-    await context.bot.send_photo(chat_id=chat_id, photo=cert["file_id"], caption=text, parse_mode=ParseMode.MARKDOWN)
+    msg = await context.bot.send_photo(chat_id=chat_id, photo=cert["file_id"], caption=text, parse_mode=ParseMode.MARKDOWN)
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(msg.message_id)
 
 async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2180,6 +2178,8 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
+    
+    await clear_user_messages(chat_id, user_id, context)
     
     certificates = await get_user_certificates(user_id)
     
@@ -2199,9 +2199,9 @@ async def my_certificates(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton(await get_button_text(lang, "back"), callback_data="menu_history")])
     keyboard.append([InlineKeyboardButton(await get_button_text(lang, "back_to_menu"), callback_data="back_to_menu")])
     
-    await context.bot.send_message(
-        chat_id=chat_id, 
-        text=text, 
+    await send_temp_message(
+        chat_id, user_id, context, 
+        text, 
         reply_markup=InlineKeyboardMarkup(keyboard), 
         parse_mode=ParseMode.MARKDOWN
     )
@@ -2212,11 +2212,13 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    
+        
     await update_streak(user_id)
     await check_and_award_achievements(user_id, 'streak')
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
+    
+    await clear_user_messages(chat_id, user_id, context)
     
     if user_id in last_responses:
         try:
@@ -2467,6 +2469,8 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
+    await clear_user_messages(query.message.chat_id, user_id, context)
+    
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
@@ -2479,7 +2483,7 @@ async def language(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🌐 Выбери язык / Select language:",
         reply_markup=kb
     )
-
+    
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2492,6 +2496,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
+    await clear_user_messages(chat_id, user_id, context)
+    
     help_text = await get_text(lang, "help")
     final_text = add_hooks(lang, help_text)
     
@@ -2499,8 +2505,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ " + await get_text(lang, "close"), callback_data="close_message")]
     ])
     
-    await delete_previous_and_send(chat_id, user_id, final_text, context, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-
+    await send_temp_message(chat_id, user_id, context, final_text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    
 async def close_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2535,12 +2541,7 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     await generate_daily_quests_for_user(user_id)
     active_quests = await get_user_active_quests(user_id)
@@ -2601,7 +2602,7 @@ async def quests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 async def claim_quest(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2630,13 +2631,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await update_streak(user_id)
-    
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     count = await get_referrals_count(user_id)
     link = f"https://t.me/BintyAgentBot?start=ref_{user_id}"
@@ -2675,7 +2670,7 @@ async def referrals(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.HTML
         )
         menu_message_ids[user_id] = msg.message_id
-    
+            
 async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2688,12 +2683,7 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     history = await get_signal_history(user_id, limit=10)
     if not history:
@@ -2726,7 +2716,7 @@ async def signal_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2739,12 +2729,7 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     history = await get_fumble_history(user_id, limit=10)
     if not history:
@@ -2777,7 +2762,7 @@ async def fumble_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2785,14 +2770,7 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = await get_language(user_id)
     await query.answer()
     
-    # Удаляем предыдущее контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-    
+    await clear_user_messages(chat_id, user_id, context)
     await update_streak(user_id)
     
     stats = await get_user_stats(user_id)
@@ -2825,21 +2803,16 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    # Удаляем предыдущее контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-            
+    
+    await clear_user_messages(chat_id, user_id, context)
+    
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2851,21 +2824,16 @@ async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         except:
             pass
-
+            
 async def show_activities_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    # Удаляем предыдущее контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-            
+    
+    await clear_user_messages(chat_id, user_id, context)
+    
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2877,21 +2845,16 @@ async def show_activities_menu(update: Update, context: ContextTypes.DEFAULT_TYP
             )
         except:
             pass
-
+            
 async def show_history_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    # Удаляем предыдущее контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-            
+    
+    await clear_user_messages(chat_id, user_id, context)
+    
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2903,21 +2866,16 @@ async def show_history_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except:
             pass
-
+            
 async def show_social_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
     await query.answer()
-    # Удаляем предыдущее контентное сообщение
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
-            
+    
+    await clear_user_messages(chat_id, user_id, context)
+    
     if user_id in menu_message_ids:
         try:
             await context.bot.edit_message_text(
@@ -2929,7 +2887,7 @@ async def show_social_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except:
             pass
-
+            
 async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2942,12 +2900,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     earned = await get_user_achievements(user_id)
     earned_keys = set([a["achievement_key"] for a in earned]) if earned else set()
@@ -3014,7 +2967,7 @@ async def achievements(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 def get_category(key: str) -> str:
     if key in ["first_fumble", "silver_loser", "gold_loser", "platinum_loser", "king_of_bottom"]:
         return "fumble"
@@ -3041,12 +2994,7 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    if user_id in last_responses:
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-            del last_responses[user_id]
-        except:
-            pass
+    await clear_user_messages(chat_id, user_id, context)
     
     info = await get_streak_info(user_id)
     active_days = set(info.get("active_days", []))
@@ -3118,7 +3066,7 @@ async def suffering_calendar(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-
+        
 async def delete_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3144,15 +3092,41 @@ async def sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type in ["group", "supergroup"]:
         await update_user_title(user_id, update.effective_chat.id, context)
     
-    pack = random.choice(["regular", "gif"])
-    sticker_id = random.choice(STICKERS.get(pack, [])) if STICKERS.get(pack) else None
-    if sticker_id:
-        await context.bot.send_sticker(chat_id=chat_id, sticker=sticker_id)
-    else:
-        text = await get_text(lang, "sticker")
-        final_text = add_hooks(lang, text)
-        await delete_previous_and_send(chat_id, user_id, final_text, context)
-        
+    await clear_user_messages(chat_id, user_id, context)
+    
+    text = await get_text(lang, "sticker_pack_text")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(await get_button_text(lang, "open_sticker_pack"), url=STICKER_URL)]
+    ])
+    await send_temp_message(chat_id, user_id, context, text, reply_markup=keyboard)
+       
+async def send_temp_message(chat_id, user_id, context, text, reply_markup=None, parse_mode=ParseMode.MARKDOWN):
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode=parse_mode
+    )
+    if user_id not in user_messages:
+        user_messages[user_id] = []
+    user_messages[user_id].append(msg.message_id)
+    if len(user_messages[user_id]) > 5:
+        old_msg_id = user_messages[user_id].pop(0)
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=old_msg_id)
+        except:
+            pass
+    return msg
+
+async def clear_user_messages(chat_id, user_id, context):
+    if user_id in user_messages:
+        for msg_id in user_messages[user_id]:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except:
+                pass
+        user_messages[user_id] = []
+                 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
