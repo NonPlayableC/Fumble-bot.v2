@@ -1345,9 +1345,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
-    reply_kb = await get_menu_reply_keyboard(lang)
-    await update.message.reply_text("\u200b", reply_markup=reply_kb)
-
+    try:
+        reply_kb = await get_menu_reply_keyboard(lang)
+        await update.message.reply_text(".", reply_markup=reply_kb)
+        logging.info(f"Reply keyboard sent to user {user_id}")
+    except Exception as e:
+        logging.error(f"Failed to send reply keyboard: {e}")
+    
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1388,9 +1392,13 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
-    reply_kb = await get_menu_reply_keyboard(lang)
-    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
-
+    try:
+        reply_kb = await get_menu_reply_keyboard(lang)
+        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
+        logging.info(f"Reply keyboard sent to user {user_id}")
+    except Exception as e:
+        logging.error(f"Failed to send reply keyboard: {e}")
+    
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
