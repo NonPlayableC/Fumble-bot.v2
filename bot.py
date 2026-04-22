@@ -2060,15 +2060,15 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
-    
-    # 1. Очищаем старые сообщения
+
+    # Удаляем старые сообщения
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
             del last_responses[user_id]
         except:
             pass
-            
+
     if user_id in menu_message_ids:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=menu_message_ids[user_id])
@@ -2076,21 +2076,19 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
         except:
             pass
 
-    # 2. Отправляем НОВОЕ меню (не редактируем!)
+    # Отправляем новое меню
     menu_text = await get_text(lang, "menu_title")
     menu_markup = await get_main_menu(user_id, lang)
-    
+
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=menu_text,
         reply_markup=menu_markup,
         parse_mode=ParseMode.MARKDOWN
     )
-    
-    # 3. Сохраняем ID нового меню
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
-    
+        
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
