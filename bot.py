@@ -1330,6 +1330,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
+    await send_reply_keyboard(chat_id, user_id, context, lang)
+    
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1345,8 +1347,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-
-    await send_reply_keyboard(chat_id, user_id, context, lang)
         
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1370,6 +1370,8 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await query.message.delete()
     
+    await send_reply_keyboard(chat_id, user_id, context, lang)
+    
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1387,8 +1389,6 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-
-    await send_reply_keyboard(chat_id, user_id, context, lang)
         
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
