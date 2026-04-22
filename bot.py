@@ -1345,12 +1345,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
-    try:
+    if not context.user_data.get("reply_keyboard_sent"):
         reply_kb = await get_menu_reply_keyboard(lang)
-        await update.message.reply_text(".", reply_markup=reply_kb)
-        logging.info(f"Reply keyboard sent to user {user_id}")
-    except Exception as e:
-        logging.error(f"Failed to send reply keyboard: {e}")
+        await update.message.reply_text("\u200b", reply_markup=reply_kb)
+        context.user_data["reply_keyboard_sent"] = True
     
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1392,12 +1390,8 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     menu_message_ids[user_id] = msg.message_id
 
-    try:
-        reply_kb = await get_menu_reply_keyboard(lang)
-        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
-        logging.info(f"Reply keyboard sent to user {user_id}")
-    except Exception as e:
-        logging.error(f"Failed to send reply keyboard: {e}")
+    reply_kb = await get_menu_reply_keyboard(lang)
+    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
     
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2048,22 +2042,36 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
     
-    # Очистка предыдущих сообщений бота
+    # 1. Очищаем старые сообщения
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
             del last_responses[user_id]
         except:
             pass
+            
     if user_id in menu_message_ids:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=menu_message_ids[user_id])
+            del menu_message_ids[user_id]
         except:
             pass
-    
-    # Отправка нового меню
-    await update_menu(chat_id, user_id, context, lang)
 
+    # 2. Отправляем НОВОЕ меню (не редактируем!)
+    menu_text = await get_text(lang, "menu_title")
+    menu_markup = await get_main_menu(user_id, lang)
+    
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=menu_text,
+        reply_markup=menu_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+    
+    # 3. Сохраняем ID нового меню
+    menu_message_ids[user_id] = msg.message_id
+    await save_menu_id(user_id, msg.message_id)
+    
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
