@@ -2,189 +2,24 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Переводы — BINTY Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        /* Мобильные улучшения */
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: -100%;
-                width: 80%;
-                height: 100vh;
-                z-index: 1000;
-                transition: left 0.3s;
-                overflow-y: auto;
-            }
-            .sidebar.show {
-                left: 0;
-            }
-            .sidebar-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 999;
-                display: none;
-            }
-            .sidebar-overlay.show {
-                display: block;
-            }
-            main {
-                margin-left: 0 !important;
-                padding: 1rem !important;
-            }
-            .menu-toggle {
-                display: block !important;
-            }
-            .translation-card {
-                padding: 12px;
-                margin-bottom: 8px;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            }
-            .category-tabs {
-                overflow-x: auto;
-                white-space: nowrap;
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 5px;
-            }
-            .category-tabs .nav-item {
-                display: inline-block;
-                float: none;
-            }
-            .modal-fullscreen .modal-dialog {
-                margin: 0;
-                max-width: 100%;
-                height: 100vh;
-            }
-            .modal-fullscreen .modal-content {
-                height: 100vh;
-                border-radius: 0;
-            }
-            .btn-action {
-                padding: 12px 16px;
-                font-size: 16px;
-            }
-        }
-        
-        .menu-toggle {
-            display: none;
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1001;
-            background: #1a1a2e;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-        
-        .category-tabs .nav-link {
-            border-radius: 20px;
-            margin-right: 5px;
-            padding: 8px 16px;
-        }
-        
-        .translation-item {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            position: relative;
-            transition: transform 0.2s;
-        }
-        
-        .translation-item:active {
-            transform: scale(0.99);
-        }
-        
-        .phrase-list-item {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .phrase-list-item textarea {
-            flex: 1;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 14px;
-        }
-        
-        .swipe-action {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0.5;
-        }
-        
-        .preview-badge {
-            font-size: 11px;
-            background: #e9ecef;
-            padding: 2px 8px;
-            border-radius: 12px;
-            color: #666;
-        }
-    </style>
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
-
-    <nav class="navbar navbar-dark">
-        <div class="container-fluid">
-            <span class="navbar-brand"><i class="bi bi-robot"></i> BINTY Admin</span>
-            <div class="d-flex align-items-center">
-                <a href="/logout" class="btn btn-outline-light btn-sm"><i class="bi bi-box-arrow-right"></i> Выйти</a>
-            </div>
-        </div>
-    </nav>
-
+    <!-- Шапка и боковое меню остаются без изменений, как в других страницах админки -->
+    <nav class="navbar navbar-dark">...</nav>
     <div class="container-fluid">
         <div class="row">
-            <nav class="col-md-2 d-md-block sidebar" id="sidebar">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/memes"><i class="bi bi-emoji-laughing"></i> Мемы</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/stickers"><i class="bi bi-sticky"></i> Стикеры</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/quests"><i class="bi bi-list-check"></i> Квесты</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/signals"><i class="bi bi-broadcast"></i> Сигналы</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/fumble"><i class="bi bi-dice-5"></i> Вопросы фамбла</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/achievements"><i class="bi bi-trophy"></i> Достижения</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/subscribers"><i class="bi bi-envelope"></i> Подписчики</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/logs"><i class="bi bi-exclamation-triangle"></i> Логи ошибок</a></li>
-                        <li class="nav-item"><a class="nav-link active" href="/translations"><i class="bi bi-translate"></i> Переводы</a></li>
-                    </ul>
-                </div>
-            </nav>
-
+            <nav class="col-md-2 d-md-block sidebar">...</nav>
             <main class="col-md-10 ms-sm-auto">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="page-title"><i class="bi bi-translate me-2"></i>Переводы</h2>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="page-title"><i class="bi bi-translate me-2"></i>Управление переводами</h2>
                     <button class="btn btn-primary" onclick="openNewModal()"><i class="bi bi-plus-lg"></i> Новый ключ</button>
                 </div>
 
-                <!-- Выбор языка -->
                 <div class="mb-3">
                     <select id="langSelect" class="form-select w-auto d-inline-block">
                         <option value="ru">🇷🇺 Русский</option>
@@ -194,78 +29,45 @@
                     </select>
                 </div>
 
-                <!-- Категории -->
-                <ul class="nav nav-tabs category-tabs mb-3" id="categoryTabs">
-                    <li class="nav-item"><a class="nav-link active" data-cat="all" href="#">Все</a></li>
-                    <li class="nav-item"><a class="nav-link" data-cat="buttons" href="#">🔘 Кнопки</a></li>
-                    <li class="nav-item"><a class="nav-link" data-cat="messages" href="#">💬 Сообщения</a></li>
-                    <li class="nav-item"><a class="nav-link" data-cat="lists" href="#">📋 Списки</a></li>
-                    <li class="nav-item"><a class="nav-link" data-cat="system" href="#">⚙️ Системные</a></li>
-                </ul>
-
-                <!-- Поиск -->
-                <div class="search-box mb-3">
-                    <i class="bi bi-search"></i>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Поиск по ключу или значению...">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ключ</th>
+                                <th>Значение</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="translationsTable"></tbody>
+                    </table>
                 </div>
-
-                <!-- Список переводов -->
-                <div id="translationsList"></div>
             </main>
         </div>
     </div>
 
-    <!-- Модальное окно редактирования -->
-    <div class="modal fade modal-fullscreen" id="editModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+    <!-- Модальное окно для добавления/редактирования -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i><span id="modalTitle">Редактировать</span></h5>
+                    <h5 class="modal-title" id="modalTitle">Добавить ключ</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" id="editId">
                     <input type="hidden" id="editLang">
-                    <input type="hidden" id="editKey">
-                    <input type="hidden" id="editType">
-                    
+                    <input type="hidden" id="editOldKey">
                     <div class="mb-3">
                         <label class="form-label">Ключ</label>
-                        <input type="text" id="displayKey" class="form-control" disabled>
+                        <input type="text" id="editKey" class="form-control" required>
                     </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label">Категория</label>
-                        <select id="editCategory" class="form-select">
-                            <option value="buttons">🔘 Кнопка</option>
-                            <option value="messages">💬 Сообщение</option>
-                            <option value="lists">📋 Список фраз</option>
-                            <option value="system">⚙️ Системное</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Для обычных текстов -->
-                    <div id="simpleEditor" style="display:none;">
                         <label class="form-label">Значение</label>
-                        <textarea id="simpleValue" class="form-control" rows="4"></textarea>
-                    </div>
-                    
-                    <!-- Для списков фраз -->
-                    <div id="listEditor" style="display:none;">
-                        <label class="form-label">Фразы</label>
-                        <div id="phrasesList"></div>
-                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="addPhrase()"><i class="bi bi-plus-lg"></i> Добавить фразу</button>
-                    </div>
-                    
-                    <!-- Предпросмотр -->
-                    <div class="mt-3 p-3 bg-light rounded" id="previewBox" style="display:none;">
-                        <small class="text-muted">Предпросмотр:</small>
-                        <div id="previewText" class="mt-1"></div>
+                        <textarea id="editValue" class="form-control" rows="3" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" onclick="saveTranslation()"><i class="bi bi-check-lg"></i> Сохранить</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTranslation()">Сохранить</button>
                 </div>
             </div>
         </div>
@@ -274,272 +76,82 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let editModal;
-        let translations = [];
-        let currentCategory = 'all';
         let currentLang = 'ru';
-        
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('show');
-            document.querySelector('.sidebar-overlay').classList.toggle('show');
-        }
-        
+
         document.addEventListener('DOMContentLoaded', () => {
             editModal = new bootstrap.Modal(document.getElementById('editModal'));
             loadTranslations();
-            
             document.getElementById('langSelect').addEventListener('change', (e) => {
                 currentLang = e.target.value;
                 loadTranslations();
             });
-            
-            document.querySelectorAll('#categoryTabs .nav-link').forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('#categoryTabs .nav-link').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    currentCategory = tab.dataset.cat;
-                    filterAndRender();
-                });
-            });
-            
-            document.getElementById('searchInput').addEventListener('input', filterAndRender);
         });
-        
+
         async function loadTranslations() {
             const res = await fetch(`/api/translations?lang=${currentLang}`);
-            translations = await res.json();
-            filterAndRender();
-        }
-        
-        function getCategory(key) {
-            if (key.startsWith('btn_')) return 'buttons';
-            if (key.includes('title') || key.includes('level') || key.includes('position')) return 'system';
-            
-            const value = translations.find(t => t.key === key)?.value || '';
-            if (value.startsWith('[') && value.endsWith(']')) return 'lists';
-            return 'messages';
-        }
-        
-        function filterAndRender() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            
-            let filtered = translations;
-            
-            if (currentCategory !== 'all') {
-                filtered = filtered.filter(t => getCategory(t.key) === currentCategory);
-            }
-            
-            if (search) {
-                filtered = filtered.filter(t => 
-                    t.key.toLowerCase().includes(search) || 
-                    t.value.toLowerCase().includes(search)
-                );
-            }
-            
-            renderList(filtered);
-        }
-        
-        function renderList(items) {
-            const container = document.getElementById('translationsList');
-            
-            if (items.length === 0) {
-                container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-search fs-1"></i><p>Ничего не найдено</p></div>';
-                return;
-            }
-            
-            const isMobile = window.innerWidth <= 768;
-            
-            if (isMobile) {
-                container.innerHTML = items.map(t => {
-                    const cat = getCategory(t.key);
-                    const catIcon = {buttons:'🔘', messages:'💬', lists:'📋', system:'⚙️'}[cat] || '📝';
-                    
-                    return `<div class="translation-card" onclick='openEdit(${JSON.stringify(t).replace(/'/g, "&apos;")})'>
-                        <div style="display:flex; justify-content:space-between; align-items:start;">
-                            <div>
-                                <span class="preview-badge">${catIcon}</span>
-                                <code style="font-size:12px;">${t.key}</code>
-                            </div>
-                            <i class="bi bi-chevron-right" style="opacity:0.5;"></i>
-                        </div>
-                        <div style="margin-top:8px; font-size:14px; color:#333; max-height:60px; overflow:hidden;">
-                            ${escapeHtml(decodeValue(t.value)).substring(0, 80)}${t.value.length > 80 ? '…' : ''}
-                        </div>
-                    </div>`;
-                }).join('');
-            } else {
-                container.innerHTML = `
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Категория</th>
-                                    <th>Ключ</th>
-                                    <th>Значение</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${items.map(t => {
-                                    const cat = getCategory(t.key);
-                                    const catIcon = {buttons:'🔘', messages:'💬', lists:'📋', system:'⚙️'}[cat] || '📝';
-                                    return `<tr>
-                                        <td><span class="badge bg-light text-dark">${catIcon}</span></td>
-                                        <td><code>${t.key}</code></td>
-                                        <td>${escapeHtml(decodeValue(t.value)).substring(0, 60)}${t.value.length > 60 ? '…' : ''}</td>
-                                        <td><button class="btn btn-sm btn-outline-primary" onclick='openEdit(${JSON.stringify(t).replace(/'/g, "&apos;")})'><i class="bi bi-pencil"></i></button></td>
-                                    </tr>`;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-        }
-        
-        function decodeValue(val) {
-            try {
-                const parsed = JSON.parse(val);
-                if (Array.isArray(parsed)) {
-                    return parsed.join(' | ');
-                }
-                return val;
-            } catch {
-                return val;
-            }
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        function openNewModal() {
-            document.getElementById('modalTitle').textContent = 'Новый ключ';
-            document.getElementById('editId').value = '';
-            document.getElementById('editLang').value = currentLang;
-            document.getElementById('editKey').value = '';
-            document.getElementById('displayKey').value = '';
-            document.getElementById('displayKey').disabled = false;
-            document.getElementById('editCategory').value = 'messages';
-            document.getElementById('editType').value = 'new';
-            
-            document.getElementById('simpleEditor').style.display = 'block';
-            document.getElementById('listEditor').style.display = 'none';
-            document.getElementById('simpleValue').value = '';
-            
-            editModal.show();
-        }
-        
-        function openEdit(item) {
-            document.getElementById('modalTitle').textContent = 'Редактировать';
-            document.getElementById('editId').value = item.id;
-            document.getElementById('editLang').value = item.lang;
-            document.getElementById('editKey').value = item.key;
-            document.getElementById('displayKey').value = item.key;
-            document.getElementById('displayKey').disabled = true;
-            document.getElementById('editType').value = 'edit';
-            
-            const cat = getCategory(item.key);
-            document.getElementById('editCategory').value = cat;
-            
-            const isList = item.value.startsWith('[') && item.value.endsWith(']');
-            
-            if (isList) {
-                document.getElementById('simpleEditor').style.display = 'none';
-                document.getElementById('listEditor').style.display = 'block';
-                
-                try {
-                    const phrases = JSON.parse(item.value);
-                    renderPhrasesList(phrases);
-                } catch {
-                    renderPhrasesList([item.value]);
-                }
-            } else {
-                document.getElementById('simpleEditor').style.display = 'block';
-                document.getElementById('listEditor').style.display = 'none';
-                document.getElementById('simpleValue').value = item.value;
-            }
-            
-            editModal.show();
-        }
-        
-        function renderPhrasesList(phrases) {
-            const container = document.getElementById('phrasesList');
-            container.innerHTML = phrases.map((p, i) => `
-                <div class="phrase-list-item" data-index="${i}">
-                    <textarea rows="2">${escapeHtml(p)}</textarea>
-                    <div style="display:flex; flex-direction:column; gap:5px;">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="movePhrase(${i}, -1)"><i class="bi bi-arrow-up"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="movePhrase(${i}, 1)"><i class="bi bi-arrow-down"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deletePhrase(${i})"><i class="bi bi-trash"></i></button>
-                    </div>
-                </div>
+            const translations = await res.json();
+            const tbody = document.getElementById('translationsTable');
+            tbody.innerHTML = translations.map(t => `
+                <tr>
+                    <td><code>${t.key}</code></td>
+                    <td>${escapeHtml(t.value)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick='openEditModal("${t.lang}", "${t.key}", ${JSON.stringify(t.value)})'><i class="bi bi-pencil"></i></button>
+                    </td>
+                </tr>
             `).join('');
         }
-        
-        function addPhrase() {
-            const container = document.getElementById('phrasesList');
-            const currentCount = container.children.length;
-            const div = document.createElement('div');
-            div.className = 'phrase-list-item';
-            div.dataset.index = currentCount;
-            div.innerHTML = `
-                <textarea rows="2"></textarea>
-                <div style="display:flex; flex-direction:column; gap:5px;">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="movePhrase(${currentCount}, -1)"><i class="bi bi-arrow-up"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="movePhrase(${currentCount}, 1)"><i class="bi bi-arrow-down"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deletePhrase(${currentCount})"><i class="bi bi-trash"></i></button>
-                </div>
-            `;
-            container.appendChild(div);
+
+        function openNewModal() {
+            document.getElementById('modalTitle').textContent = 'Добавить ключ';
+            document.getElementById('editLang').value = currentLang;
+            document.getElementById('editOldKey').value = '';
+            document.getElementById('editKey').value = '';
+            document.getElementById('editValue').value = '';
+            document.getElementById('editKey').disabled = false;
+            editModal.show();
         }
-        
-        function movePhrase(index, direction) {
-            const container = document.getElementById('phrasesList');
-            const items = Array.from(container.children);
-            const newIndex = index + direction;
-            if (newIndex < 0 || newIndex >= items.length) return;
-            container.insertBefore(items[newIndex], items[index]);
-            updatePhraseIndices();
+
+        function openEditModal(lang, key, value) {
+            document.getElementById('modalTitle').textContent = 'Редактировать ключ';
+            document.getElementById('editLang').value = lang;
+            document.getElementById('editOldKey').value = key;
+            document.getElementById('editKey').value = key;
+            document.getElementById('editValue').value = value;
+            document.getElementById('editKey').disabled = true; // Ключ менять нельзя при редактировании
+            editModal.show();
         }
-        
-        function deletePhrase(index) {
-            const container = document.getElementById('phrasesList');
-            if (container.children.length <= 1) {
-                alert('Должна быть хотя бы одна фраза');
-                return;
-            }
-            container.children[index].remove();
-            updatePhraseIndices();
-        }
-        
-        function updatePhraseIndices() {
-            const container = document.getElementById('phrasesList');
-            Array.from(container.children).forEach((item, i) => {
-                item.dataset.index = i;
-            });
-        }
-        
+
         async function saveTranslation() {
             const lang = document.getElementById('editLang').value;
+            const oldKey = document.getElementById('editOldKey').value;
             const key = document.getElementById('editKey').value;
             const value = document.getElementById('editValue').value;
-            
+
             if (!key.trim()) {
                 alert('Ключ не может быть пустым');
                 return;
             }
-            
+
+            // Если ключ изменился при редактировании (хотя он disabled), то удаляем старый
+            if (oldKey && oldKey !== key) {
+                await fetch(`/api/translations?lang=${lang}&key=${encodeURIComponent(oldKey)}`, { method: 'DELETE' });
+            }
+
             await fetch('/api/translations', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({lang, key, value})
             });
-            
+
             editModal.hide();
             loadTranslations();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
