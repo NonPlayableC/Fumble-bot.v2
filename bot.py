@@ -1347,7 +1347,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not context.user_data.get("reply_keyboard_sent"):
         reply_kb = await get_menu_reply_keyboard(lang)
-        await update.message.reply_text("\u200b", reply_markup=reply_kb)
+        await update.message.reply_text("", reply_markup=reply_kb)
         context.user_data["reply_keyboard_sent"] = True
     
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1391,7 +1391,7 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     menu_message_ids[user_id] = msg.message_id
 
     reply_kb = await get_menu_reply_keyboard(lang)
-    await context.bot.send_message(chat_id=chat_id, text="\u200b", reply_markup=reply_kb)
+    await context.bot.send_message(chat_id=chat_id, text="", reply_markup=reply_kb)
     
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
