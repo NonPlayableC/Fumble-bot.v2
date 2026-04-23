@@ -1202,7 +1202,6 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     menu_markup = await get_main_menu(user_id, lang)
     
     msg_id = menu_message_ids.get(user_id)
-    
     if not msg_id:
         msg_id = await get_menu_id(user_id)
     
@@ -1218,8 +1217,12 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
             menu_message_ids[user_id] = msg_id
             return
         except Exception as e:
-            logging.warning(f"Failed to edit menu {msg_id} for {user_id}: {e}")
-            # Удаляем старое, раз не смогли отредактировать
+            error_msg = str(e)
+            # Если сообщение не изменилось — это не ошибка, выходим
+            if "not modified" in error_msg.lower():
+                return
+            # Иначе удаляем и шлём новое
+            logging.warning(f"Failed to edit menu {msg_id}: {e}")
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
             except:
@@ -1231,10 +1234,9 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
         reply_markup=menu_markup,
         parse_mode=ParseMode.MARKDOWN
     )
-    
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
-
+    
 async def check_action_limit(user_id: int, action: str, lang: str) -> tuple:
     now = datetime.now()
     today = date.today().isoformat()
@@ -1404,29 +1406,21 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
-
     msg_id = reply_keyboard_message_ids.get(user_id)
-    
+
     if msg_id:
         try:
-            # Пробуем отредактировать существующее сообщение с точкой
-            await context.bot.edit_message_reply_markup(
-                chat_id=chat_id,
-                message_id=msg_id,
-                reply_markup=reply_kb
-            )
-            return
+            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
         except:
             pass
 
-    # Только если нет существующего — отправляем новое
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=".",
         reply_markup=reply_kb
     )
     reply_keyboard_message_ids[user_id] = msg.message_id
-            
+                
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3242,8 +3236,39 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id = query.message.chat_id
             await set_language(user_id, lang_code)
             await query.answer(f"✅ Язык изменён")
-            await send_reply_keyboard(chat_id, user_id, context, lang_code)
-            await update_menu(chat_id, user_id, context, lang_code)
+            
+            # Удаляем старую точку
+            old_reply_id = reply_keyboard_message_ids.get(user_id)
+            if old_reply_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_reply_id)
+                except:
+                    pass
+            
+            # Удаляем старое меню
+            old_menu_id = menu_message_ids.get(user_id)
+            if old_menu_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=old_menu_id)
+                except:
+                    pass
+            
+            # Сначала шлём новую точку
+            reply_kb = await get_menu_reply_keyboard(lang_code)
+            reply_msg = await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
+            reply_keyboard_message_ids[user_id] = reply_msg.message_id
+            
+            # Потом новое меню
+            menu_text = await get_text(lang_code, "menu_title")
+            menu_markup = await get_main_menu(user_id, lang_code)
+            menu_msg = await context.bot.send_message(
+                chat_id=chat_id,
+                text=menu_text,
+                reply_markup=menu_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            menu_message_ids[user_id] = menu_msg.message_id
+            await save_menu_id(user_id, menu_msg.message_id)
         elif data == "my_certificates": 
             await my_certificates(update, context)
         elif data.startswith("view_cert_"): 
