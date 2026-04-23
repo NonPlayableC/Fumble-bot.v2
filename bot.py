@@ -1221,6 +1221,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
                 await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
             except:
                 pass
+            menu_message_ids.pop(user_id, None)
     
     msg = await context.bot.send_message(
         chat_id=chat_id,
@@ -1230,7 +1231,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     )
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
-            
+                
 async def check_action_limit(user_id: int, action: str, lang: str) -> tuple:
     now = datetime.now()
     today = date.today().isoformat()
