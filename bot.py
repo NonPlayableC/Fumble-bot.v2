@@ -1198,6 +1198,32 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
         except:
             pass
     
+    # Обновляем статистику
+    stats = await get_user_stats(user_id)
+    if stats:
+        level = get_level(stats["average"])
+        level_name = get_level_name(level, lang)
+        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+    else:
+        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
+    
+    # Ищем старое сообщение со статистикой и удаляем
+    old_stat_msg_id = context.user_data.get("stat_message_id")
+    if old_stat_msg_id:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=old_stat_msg_id)
+        except:
+            pass
+    
+    # Отправляем новую статистику
+    stat_msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=stat_text,
+        parse_mode=ParseMode.MARKDOWN
+    )
+    context.user_data["stat_message_id"] = stat_msg.message_id
+    
+    # Меню
     menu_text = await get_text(lang, "menu_title")
     menu_markup = await get_main_menu(user_id, lang)
     
@@ -1231,7 +1257,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     )
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
-                
+                    
 async def check_action_limit(user_id: int, action: str, lang: str) -> tuple:
     now = datetime.now()
     today = date.today().isoformat()
@@ -1334,8 +1360,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
+    # 1. Reply-клавиатура с фразой
     await send_reply_keyboard(chat_id, user_id, context, lang)
     
+    # 2. Статистика
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1343,15 +1371,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
     else:
         stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
-    await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
+    stat_msg = await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
+    context.user_data["stat_message_id"] = stat_msg.message_id
     
+    # 3. Меню
     msg = await update.message.reply_text(
         await get_text(lang, "menu_title"),
         reply_markup=await get_main_menu(user_id, lang),
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-        
+            
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -1378,6 +1408,10 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await clear_user_messages(chat_id, user_id, context)
     await query.message.delete()
     
+    # 1. Reply-клавиатура с фразой
+    await send_reply_keyboard(chat_id, user_id, context, lang)
+    
+    # 2. Статистика
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
@@ -1385,9 +1419,10 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
     else:
         stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
+    stat_msg = await context.bot.send_message(chat_id=chat_id, text=stat_text, parse_mode=ParseMode.MARKDOWN)
+    context.user_data["stat_message_id"] = stat_msg.message_id
     
-    await send_temp_message(chat_id, user_id, context, stat_text, parse_mode=ParseMode.MARKDOWN)
-    
+    # 3. Меню
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=await get_text(lang, "menu_title"),
@@ -1395,27 +1430,37 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.MARKDOWN
     )
     menu_message_ids[user_id] = msg.message_id
-
-    reply_kb = await get_menu_reply_keyboard(lang)
-    await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
-            
+                
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
+    
+    # Рандомная фраза из БД вместо точки
+    reply_text = await get_text(lang, "reply_keyboard_text")
+    
     msg_id = reply_keyboard_message_ids.get(user_id)
-
+    
     if msg_id:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=reply_text,
+                reply_markup=reply_kb
+            )
+            return
         except:
-            pass
-
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except:
+                pass
+    
     msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=".",
+        text=reply_text,
         reply_markup=reply_kb
     )
     reply_keyboard_message_ids[user_id] = msg.message_id
-                
+                    
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3231,39 +3276,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id = query.message.chat_id
             await set_language(user_id, lang_code)
             await query.answer(f"✅ Язык изменён")
-            
-            # Удаляем старую точку
-            old_reply_id = reply_keyboard_message_ids.get(user_id)
-            if old_reply_id:
-                try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_reply_id)
-                except:
-                    pass
-            
-            # Удаляем старое меню
-            old_menu_id = menu_message_ids.get(user_id)
-            if old_menu_id:
-                try:
-                    await context.bot.delete_message(chat_id=chat_id, message_id=old_menu_id)
-                except:
-                    pass
-            
-            # Сначала шлём новую точку
-            reply_kb = await get_menu_reply_keyboard(lang_code)
-            reply_msg = await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=reply_kb)
-            reply_keyboard_message_ids[user_id] = reply_msg.message_id
-            
-            # Потом новое меню
-            menu_text = await get_text(lang_code, "menu_title")
-            menu_markup = await get_main_menu(user_id, lang_code)
-            menu_msg = await context.bot.send_message(
-                chat_id=chat_id,
-                text=menu_text,
-                reply_markup=menu_markup,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            menu_message_ids[user_id] = menu_msg.message_id
-            await save_menu_id(user_id, menu_msg.message_id)
+            await send_reply_keyboard(chat_id, user_id, context, lang_code)
+            await update_menu(chat_id, user_id, context, lang_code)
         elif data == "my_certificates": 
             await my_certificates(update, context)
         elif data.startswith("view_cert_"): 
