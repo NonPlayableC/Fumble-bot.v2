@@ -91,6 +91,7 @@ user_daily_limits = {}
 user_certificate_hash = {}
 reply_keyboard_message_ids = {}
 user_messages = {}  # user_id: [message_ids]
+user_processing = {}  # user_id: bool — идёт ли обработка callback
 
 STICKERS = {"regular": [], "gif": []}
 MEMES = ["https://i.imgflip.com/2kbnrp.jpg", "https://i.imgflip.com/1bij.jpg", "https://i.imgflip.com/26am.jpg"]
@@ -2771,6 +2772,15 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     await clear_user_messages(chat_id, user_id, context)
+    
+    # ✅ Добавить удаление last_responses
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     await update_streak(user_id)
     
     stats = await get_user_stats(user_id)
@@ -2803,7 +2813,7 @@ async def hall_of_suffering(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN
         )
         menu_message_ids[user_id] = msg.message_id
-        
+                
 async def show_progress_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3129,71 +3139,80 @@ async def clear_user_messages(chat_id, user_id, context):
                  
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user_id = query.from_user.id
     data = query.data
     
-    if data == "signal": await signal(update, context)
-    elif data == "fumble": await fumble_start(update, context)
-    elif data == "portfolio": await portfolio(update, context)
-    elif data == "price": await price(update, context)
-    elif data == "holders": await holders(update, context)
-    elif data == "balance": await balance(update, context)
-    elif data == "meme": await meme(update, context)
-    elif data == "sticker": await sticker(update, context)
-    elif data == "leaderboard": await leaderboard(update, context)
-    elif data == "language": await language(update, context)
-    elif data == "subscribe": await subscribe(update, context)
-    elif data == "unsubscribe": await unsubscribe(update, context)
-    elif data == "help": await help_command(update, context)
-    elif data == "hall_of_suffering": await hall_of_suffering(update, context)
-    elif data == "achievements": await achievements(update, context)
-    elif data == "certificate": await certificate(update, context)
-    elif data == "suffering_calendar": await suffering_calendar(update, context)
-    elif data == "quests": await quests(update, context)
-    elif data == "referrals": await referrals(update, context)
-    elif data == "signal_history": await signal_history(update, context)
-    elif data == "fumble_history": await fumble_history(update, context)
-    elif data.startswith("fumble_answer_"): await fumble_answer_handler(update, context)
-    elif data == "fumble_cancel": await fumble_cancel_handler(update, context)
-    elif data == "manual_fumble": await manual_fumble_start(update, context)
-    elif data == "back_to_menu": await back_to_menu(update, context)
-    elif data == "cancel_balance": await cancel_balance(update, context)
-    elif data == "confirm_subscribe": await confirm_subscribe(update, context)
-    elif data == "confirm_unsubscribe": await confirm_unsubscribe(update, context)
-    elif data == "cancel_subscribe": await cancel_action(update, context)
-    elif data == "cancel_unsubscribe": await cancel_action(update, context)
-    elif data == "lb_next": await lb_next(update, context)
-    elif data == "lb_prev": await lb_prev(update, context)
-    elif data == "delete_wallet": await delete_wallet(update, context)
-    elif data.startswith("claim_quest_"): await claim_quest(update, context)
-    elif data == "close_message":
-        user_id = query.from_user.id
-        chat_id = query.message.chat_id
-        if user_id in last_responses:
-            try:
-                await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
-                del last_responses[user_id]
-            except:
-                pass
-        await query.message.delete()
-    elif data.startswith("lang_"):
-        lang_code = data.split("_")[1]
-        user_id = query.from_user.id
-        chat_id = query.message.chat_id
-        await set_language(user_id, lang_code)
-        await query.answer(f"✅ Язык изменён")
-        await update_menu(chat_id, user_id, context, lang_code)
-    elif data == "my_certificates": 
-        await my_certificates(update, context)
-    elif data.startswith("view_cert_"): 
-        await view_certificate(update, context)
-    elif data == "menu_progress": await show_progress_menu(update, context)
-    elif data == "menu_activities": await show_activities_menu(update, context)
-    elif data == "menu_history": await show_history_menu(update, context)
-    elif data == "menu_social": await show_social_menu(update, context)
-    elif data == "accept_disclaimer": await show_rules(update, context)
-    elif data == "accept_rules": await finish_onboarding(update, context)
-    elif data.startswith("onboard_lang_"): await set_onboarding_language(update, context)
-
+    # ✅ Проверка: не обрабатывается ли уже другой запрос
+    if user_processing.get(user_id, False):
+        await query.answer("⏳ Подожди, я ещё думаю...", show_alert=True)
+        return
+    
+    user_processing[user_id] = True
+    
+    try:
+        if data == "signal": await signal(update, context)
+        elif data == "fumble": await fumble_start(update, context)
+        elif data == "portfolio": await portfolio(update, context)
+        elif data == "price": await price(update, context)
+        elif data == "holders": await holders(update, context)
+        elif data == "balance": await balance(update, context)
+        elif data == "meme": await meme(update, context)
+        elif data == "sticker": await sticker(update, context)
+        elif data == "leaderboard": await leaderboard(update, context)
+        elif data == "language": await language(update, context)
+        elif data == "subscribe": await subscribe(update, context)
+        elif data == "unsubscribe": await unsubscribe(update, context)
+        elif data == "help": await help_command(update, context)
+        elif data == "hall_of_suffering": await hall_of_suffering(update, context)
+        elif data == "achievements": await achievements(update, context)
+        elif data == "certificate": await certificate(update, context)
+        elif data == "suffering_calendar": await suffering_calendar(update, context)
+        elif data == "quests": await quests(update, context)
+        elif data == "referrals": await referrals(update, context)
+        elif data == "signal_history": await signal_history(update, context)
+        elif data == "fumble_history": await fumble_history(update, context)
+        elif data.startswith("fumble_answer_"): await fumble_answer_handler(update, context)
+        elif data == "fumble_cancel": await fumble_cancel_handler(update, context)
+        elif data == "manual_fumble": await manual_fumble_start(update, context)
+        elif data == "back_to_menu": await back_to_menu(update, context)
+        elif data == "cancel_balance": await cancel_balance(update, context)
+        elif data == "confirm_subscribe": await confirm_subscribe(update, context)
+        elif data == "confirm_unsubscribe": await confirm_unsubscribe(update, context)
+        elif data == "cancel_subscribe": await cancel_action(update, context)
+        elif data == "cancel_unsubscribe": await cancel_action(update, context)
+        elif data == "lb_next": await lb_next(update, context)
+        elif data == "lb_prev": await lb_prev(update, context)
+        elif data == "delete_wallet": await delete_wallet(update, context)
+        elif data.startswith("claim_quest_"): await claim_quest(update, context)
+        elif data == "close_message": 
+            chat_id = query.message.chat_id
+            if user_id in last_responses:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+                    del last_responses[user_id]
+                except:
+                    pass
+            await query.message.delete()
+        elif data.startswith("lang_"):
+            lang_code = data.split("_")[1]
+            chat_id = query.message.chat_id
+            await set_language(user_id, lang_code)
+            await query.answer(f"✅ Язык изменён")
+            await update_menu(chat_id, user_id, context, lang_code)
+        elif data == "my_certificates": 
+            await my_certificates(update, context)
+        elif data.startswith("view_cert_"): 
+            await view_certificate(update, context)
+        elif data == "menu_progress": await show_progress_menu(update, context)
+        elif data == "menu_activities": await show_activities_menu(update, context)
+        elif data == "menu_history": await show_history_menu(update, context)
+        elif data == "menu_social": await show_social_menu(update, context)
+        elif data == "accept_disclaimer": await show_rules(update, context)
+        elif data == "accept_rules": await finish_onboarding(update, context)
+        elif data.startswith("onboard_lang_"): await set_onboarding_language(update, context)
+    finally:
+        user_processing[user_id] = False
+        
 # ==================== HTTP-СЕРВЕР ДЛЯ RENDER ====================
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
