@@ -1219,6 +1219,11 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
             return
         except Exception as e:
             logging.warning(f"Failed to edit menu {msg_id} for {user_id}: {e}")
+            # Удаляем старое, раз не смогли отредактировать
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except:
+                pass
     
     msg = await context.bot.send_message(
         chat_id=chat_id,
@@ -2083,7 +2088,7 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     lang = await get_language(user_id)
     await clear_user_messages(chat_id, user_id, context)
     
-    # Удаляем last_responses если есть
+    # Удаляем last_responses
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -2092,7 +2097,7 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             pass
     
     await update_menu(chat_id, user_id, context, lang)
-                    
+                        
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3230,8 +3235,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id = query.message.chat_id
             await set_language(user_id, lang_code)
             await query.answer(f"✅ Язык изменён")
-            await update_menu(chat_id, user_id, context, lang_code)
             await send_reply_keyboard(chat_id, user_id, context, lang_code)
+            await update_menu(chat_id, user_id, context, lang_code)
         elif data == "my_certificates": 
             await my_certificates(update, context)
         elif data.startswith("view_cert_"): 
