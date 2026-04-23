@@ -3312,7 +3312,9 @@ def main():
     app.add_error_handler(error_handler)
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
+    app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(button_callback))
     
