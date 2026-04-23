@@ -3135,7 +3135,28 @@ async def clear_user_messages(chat_id, user_id, context):
             except:
                 pass
         user_messages[user_id] = []
-                 
+  
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    lang = await get_language(user_id)
+    text = update.message.text
+    
+    # Проверяем, нажата ли кнопка меню
+    button_text = await get_button_text(lang, "menu_button")
+    if text == button_text:
+        await clear_user_messages(chat_id, user_id, context)
+        await update_menu(chat_id, user_id, context, lang)
+        return
+    
+    # Проверяем баланс если ожидается
+    if context.user_data.get('awaiting_balance'):
+        await handle_balance_message(update, context)
+        return
+    
+    # Всё остальное
+    await handle_message(update, context)
+                                           
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -3194,10 +3215,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.delete()
         elif data.startswith("lang_"):
             lang_code = data.split("_")[1]
+            user_id = query.from_user.id
             chat_id = query.message.chat_id
             await set_language(user_id, lang_code)
             await query.answer(f"✅ Язык изменён")
             await update_menu(chat_id, user_id, context, lang_code)
+            await send_reply_keyboard(chat_id, user_id, context, lang_code)
         elif data == "my_certificates": 
             await my_certificates(update, context)
         elif data.startswith("view_cert_"): 
@@ -3241,12 +3264,9 @@ def main():
     app.add_error_handler(error_handler)
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_balance_message))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
     app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(button_callback))
-   
-    app.add_handler(MessageHandler(filters.Regex(r'^(📋 МЕНЮ|📋 MENU|📋 MENÚ|📋 菜单)$'), handle_menu_button))
     
     job_queue = app.job_queue
     if job_queue:
