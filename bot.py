@@ -1400,25 +1400,27 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
 
-    # если уже есть — удаляем старое
-    if user_id in reply_keyboard_message_ids:
+    # если уже есть — пробуем отредактировать
+    msg_id = reply_keyboard_message_ids.get(user_id)
+    if msg_id:
         try:
-            await context.bot.delete_message(
+            await context.bot.edit_message_reply_markup(
                 chat_id=chat_id,
-                message_id=reply_keyboard_message_ids[user_id]
+                message_id=msg_id,
+                reply_markup=reply_kb
             )
+            return
         except:
             pass
 
-    # отправляем новое
+    # если редактировать не получилось — отправляем новое
     msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=".",  # можно заменить на что-то стильное
+        text=".",
         reply_markup=reply_kb
     )
-
     reply_keyboard_message_ids[user_id] = msg.message_id
-    
+        
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2080,8 +2082,17 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
     await clear_user_messages(chat_id, user_id, context)
+    
+    # Удаляем last_responses если есть
+    if user_id in last_responses:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
+            del last_responses[user_id]
+        except:
+            pass
+    
     await update_menu(chat_id, user_id, context, lang)
-                
+                    
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
