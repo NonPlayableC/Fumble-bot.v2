@@ -1453,7 +1453,6 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     chat_id = query.message.chat_id
     lang = await get_language(user_id)
-    await query.answer()
     
     if user_id in user_tasks:
         user_tasks[user_id].cancel()
