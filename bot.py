@@ -1205,8 +1205,6 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     if not msg_id:
         msg_id = await get_menu_id(user_id)
     
-    logging.info(f"UPDATE_MENU: user={user_id}, msg_id={msg_id}")
-    
     if msg_id:
         try:
             await context.bot.edit_message_text(
@@ -1217,12 +1215,8 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
                 parse_mode=ParseMode.MARKDOWN
             )
             menu_message_ids[user_id] = msg_id
-            logging.info(f"UPDATE_MENU: edited msg {msg_id}")
             return
-        except Exception as e:
-            logging.warning(f"UPDATE_MENU: edit failed: {e}")
-            if "not modified" in str(e).lower():
-                return
+        except:
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
             except:
@@ -1236,8 +1230,7 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     )
     menu_message_ids[user_id] = msg.message_id
     await save_menu_id(user_id, msg.message_id)
-    logging.info(f"UPDATE_MENU: sent new msg {msg.message_id}")
-        
+            
 async def check_action_limit(user_id: int, action: str, lang: str) -> tuple:
     now = datetime.now()
     today = date.today().isoformat()
@@ -3335,7 +3328,7 @@ def main():
     
     logging.info("🚀 BINTY Agent starting with polling...")
     print("🚀 Bot is starting...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
