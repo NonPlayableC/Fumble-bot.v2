@@ -1202,11 +1202,11 @@ async def update_menu(chat_id: int, user_id: int, context: ContextTypes.DEFAULT_
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
-        level_name = get_level_name(level, lang)
-        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+        stat_template = await get_text(lang, "stats_template")
+        stat_text = stat_template.format(level=level, avg=stats['average'], count=stats['count'])
     else:
-        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
-    
+        stat_text = await get_text(lang, "stats_new_user")
+       
     # Ищем старое сообщение со статистикой и удаляем
     old_stat_msg_id = context.user_data.get("stat_message_id")
     if old_stat_msg_id:
@@ -1367,13 +1367,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
-        level_name = get_level_name(level, lang)
-        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+        stat_template = await get_text(lang, "stats_template")
+        stat_text = stat_template.format(level=level, avg=stats['average'], count=stats['count'])
     else:
-        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
-    stat_msg = await update.message.reply_text(stat_text, parse_mode=ParseMode.MARKDOWN)
-    context.user_data["stat_message_id"] = stat_msg.message_id
-    
+        stat_text = await get_text(lang, "stats_new_user")
+        
     # 3. Меню
     msg = await update.message.reply_text(
         await get_text(lang, "menu_title"),
@@ -1415,13 +1413,11 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = await get_user_stats(user_id)
     if stats:
         level = get_level(stats["average"])
-        level_name = get_level_name(level, lang)
-        stat_text = f"📊 **Your stats:** Level {level}/5 | Avg: {stats['average']:.1f} | Fumbles: {stats['count']}"
+        stat_template = await get_text(lang, "stats_template")
+        stat_text = stat_template.format(level=level, avg=stats['average'], count=stats['count'])
     else:
-        stat_text = "📊 **Your stats:** New fumbler! Ready to lose money?"
-    stat_msg = await context.bot.send_message(chat_id=chat_id, text=stat_text, parse_mode=ParseMode.MARKDOWN)
-    context.user_data["stat_message_id"] = stat_msg.message_id
-    
+        stat_text = await get_text(lang, "stats_new_user")
+        
     # 3. Меню
     msg = await context.bot.send_message(
         chat_id=chat_id,
