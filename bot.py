@@ -1405,10 +1405,11 @@ async def finish_onboarding(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_reply_keyboard(chat_id, user_id, context, lang):
     reply_kb = await get_menu_reply_keyboard(lang)
 
-    # если уже есть — пробуем отредактировать
     msg_id = reply_keyboard_message_ids.get(user_id)
+    
     if msg_id:
         try:
+            # Пробуем отредактировать существующее сообщение с точкой
             await context.bot.edit_message_reply_markup(
                 chat_id=chat_id,
                 message_id=msg_id,
@@ -1418,14 +1419,14 @@ async def send_reply_keyboard(chat_id, user_id, context, lang):
         except:
             pass
 
-    # если редактировать не получилось — отправляем новое
+    # Только если нет существующего — отправляем новое
     msg = await context.bot.send_message(
         chat_id=chat_id,
         text=".",
         reply_markup=reply_kb
     )
     reply_keyboard_message_ids[user_id] = msg.message_id
-        
+            
 async def decline_disclaimer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
@@ -2086,9 +2087,15 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     lang = await get_language(user_id)
+    
+    # Удаляем сообщение пользователя (команду)
+    try:
+        await update.message.delete()
+    except:
+        pass
+    
     await clear_user_messages(chat_id, user_id, context)
     
-    # Удаляем last_responses
     if user_id in last_responses:
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=last_responses[user_id])
@@ -2097,7 +2104,7 @@ async def handle_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE)
             pass
     
     await update_menu(chat_id, user_id, context, lang)
-                        
+                            
 async def certificate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
